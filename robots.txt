@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://second-read-three.vercel.app/sitemap.xml
