@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Check your assignment for AI-like writing, see which sentences are flagged, and revise them.">
+<title>Second Read</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a two-column marking desk. Left = the submission, highlighted sentence by sentence; right = the verdict and the evidence. Stacks on phones. */
+:root{
+  --bg:#eef1f5; --paper:#ffffff; --ink:#18212e; --muted:#5b6778; --line:#d5dbe4;
+  --accent:#2747a8; --accent-ink:#ffffff;
+  --hl-high:rgba(232,89,60,.26); --hl-mid:rgba(240,180,40,.30); --hl-low:transparent;
+  --good:#1f7a4d; --warn:#b07400; --bad:#c2412a;
+  --display:"Newsreader",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --paper:#18202b; --ink:#e6eaf0; --muted:#97a3b4; --line:#2b3542;
+  --accent:#8ea8ff; --accent-ink:#0d1220;
+  --hl-high:rgba(255,120,90,.30); --hl-mid:rgba(255,200,70,.24);
+  --good:#5cc994; --warn:#e8b54a; --bad:#ff8a6e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --paper:#18202b; --ink:#e6eaf0; --muted:#97a3b4; --line:#2b3542;
+  --accent:#8ea8ff; --accent-ink:#0d1220;
+  --hl-high:rgba(255,120,90,.30); --hl-mid:rgba(255,200,70,.24);
+  --good:#5cc994; --warn:#e8b54a; --bad:#ff8a6e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);padding:0 16px}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font:700 2.1rem/1.1 var(--display);margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.tag{color:var(--muted);margin:4px 0 0;max-width:60ch}
+.notice{font-size:.85rem;color:var(--muted);border-left:3px solid var(--warn);padding:6px 12px;background:var(--paper);border-radius:0 6px 6px 0;max-width:60ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.label{font:500 .72rem/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+textarea{width:100%;min-height:300px;resize:vertical;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:15px/1.65 var(--body);padding:14px;margin-top:10px}
+textarea:focus,button:focus-visible,.file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.meta{font:400 .8rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button,.file{font:500 .9rem var(--body);border-radius:7px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.55;cursor:default}
+.file input{position:absolute;width:1px;height:1px;opacity:0}
+.file{position:relative;display:inline-flex}
+#report{margin-top:6px;font:17px/1.75 var(--display)}
+#report p{margin:0 0 14px}
+.s{border-radius:3px;padding:1px 0;transition:background .2s;cursor:help}
+.s.high{background:var(--hl-high)} .s.mid{background:var(--hl-mid)}
+.s:hover{outline:1px solid var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted);margin-top:4px}
+.sw{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle;border:1px solid var(--line)}
+.side{display:flex;flex-direction:column;gap:18px}
+.gauge{display:flex;gap:18px;align-items:center}
+.ring{--p:0;--c:var(--good);width:120px;height:120px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.ring>div{width:94px;height:94px;border-radius:50%;background:var(--paper);display:grid;place-items:center;text-align:center}
+.ring b{font:700 1.9rem/1 var(--display);font-variant-numeric:tabular-nums}
+.ring small{font:400 .66rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.verdict{font:600 1.15rem/1.3 var(--display);margin:0}
+.pill{display:inline-block;font:500 .72rem var(--mono);padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-top:6px}
+.summary{margin:0;color:var(--ink)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font:500 1.2rem var(--mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:.78rem;color:var(--muted)}
+ul.sig{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+ul.sig li{display:flex;gap:10px;align-items:baseline;font-size:.9rem}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;transform:translateY(-1px)}
+.status{font-size:.88rem;color:var(--muted);min-height:1.4em}
+.status.err{color:var(--bad)}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.2s infinite ease-in-out}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}
+#tip{position:fixed;z-index:10;max-width:280px;background:var(--ink);color:var(--paper);font:13px/1.45 var(--body);padding:8px 10px;border-radius:6px;pointer-events:none}
+.coderow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.88rem}
+.coderow input{border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);padding:7px 10px;font:inherit;min-width:0;flex:1 1 200px}
+.revise{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
+.hint{font-size:.86rem;color:var(--muted);margin:8px 0 0;max-width:68ch}
+mark.ph{background:var(--hl-mid);color:var(--ink);border-radius:3px;padding:0 3px;font-style:italic}
+ol.flags{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+ol.flags li{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.fl-top{display:flex;justify-content:space-between;gap:10px;font:500 .72rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.fl-top .pct{color:var(--bad)} .fl-top .pct.mid{color:var(--warn)}
+.orig{font:16px/1.6 var(--display);margin:0}
+.orig span{border-radius:3px}
+.new{font:16px/1.6 var(--display);margin:0;padding:8px 10px;border-radius:6px;background:var(--bg);border-left:3px solid var(--good)}
+.why{font-size:.82rem;color:var(--muted);margin:0}
+.fl-act{display:flex;gap:8px;flex-wrap:wrap}
+.fl-act button{padding:5px 12px;font-size:.82rem}
+.fl-act button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--paper)}
+li.used .orig{text-decoration:line-through;opacity:.6}
+.empty{color:var(--muted);font-size:.9rem}
+details{font-size:.88rem;color:var(--muted)}
+details summary{cursor:pointer;color:var(--ink);font-weight:500}
+details p{margin:8px 0 0}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Second <span>Read</span></h1>
+      <p class="tag">Check your assignment before you hand it in. Paste your essay and see which sentences read as machine-written, and why.</p>
+    </div>
+    <p class="notice"><strong>A score is a signal, not proof.</strong> AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Use this to revise, never as evidence against someone.</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="row">
+        <span class="label" id="inLabel">Your text · example loaded</span>
+        <span class="meta" id="count">0 words</span>
+      </div>
+      <textarea id="input" aria-labelledby="inLabel" placeholder="Paste your assignment here (at least 80 words works best)…"></textarea>
+      <div class="actions">
+        <button class="primary" id="analyze">Analyze with AI</button>
+        <button id="quick">Quick check (offline)</button>
+        <label class="file">Upload .txt / .md<input type="file" id="file" accept=".txt,.md,text/plain,text/markdown"></label>
+        <button id="clear">Clear</button>
+        <button id="stop" hidden>Stop</button>
+      </div>
+      <div class="status" id="status" role="status"></div>
+      <div class="bar" id="busy" hidden><i></i></div>
+      <div class="coderow" id="codeRow" hidden><label for="code">Access code</label><input id="code" type="password" autocomplete="off" placeholder="Ask your instructor or site owner"></div>
+
+      <div style="margin-top:22px">
+        <div class="row"><span class="label">Sentence map</span>
+          <div class="legend"><span><i class="sw" style="background:var(--hl-high)"></i>Likely AI</span><span><i class="sw" style="background:var(--hl-mid)"></i>Mixed</span><span><i class="sw"></i>Likely human</span></div>
+        </div>
+        <div id="report"></div>
+      </div>
+
+      <div class="revise" id="revise">
+        <div class="row">
+          <span class="label">Flagged lines · <span id="flagCount">0</span></span>
+          <div class="actions" style="margin:0">
+            <button class="primary" id="rewrite">Humanize flagged lines</button>
+            <button id="copyOut" hidden>Copy revised text</button>
+            <button id="useOut" hidden>Put revised text in editor</button>
+          </div>
+        </div>
+        <p class="hint" id="revHint">These are the sentences marked AI-like or mixed. Humanize rewrites only these lines in plainer, more natural wording and leaves the rest of your text alone. Where a line needs your own example, you'll see <mark class="ph">[add your own example]</mark>.</p>
+        <ol class="flags" id="flags"></ol>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <span class="label">AI likelihood</span>
+        <div class="gauge" style="margin-top:12px">
+          <div class="ring" id="ring"><div><span><b id="score">–</b><br><small>/ 100</small></span></div></div>
+          <div>
+            <p class="verdict" id="verdict">Run a check to see a score</p>
+            <span class="pill" id="source">No analysis yet</span>
+          </div>
+        </div>
+        <p class="summary" id="summary" style="margin-top:14px"></p>
+      </section>
+
+      <section class="panel">
+        <span class="label">Writing signals</span>
+        <ul class="sig" id="signals"></ul>
+      </section>
+
+      <section class="panel">
+        <span class="label">Text statistics</span>
+        <div class="stats" style="margin-top:10px">
+          <div class="stat"><b id="stBurst">–</b><span>Sentence variety</span></div>
+          <div class="stat"><b id="stAvg">–</b><span>Avg words / sentence</span></div>
+          <div class="stat"><b id="stVocab">–</b><span>Vocabulary range</span></div>
+          <div class="stat"><b id="stPhr">–</b><span>Stock AI phrases</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <details>
+          <summary>How the score works</summary>
+          <p><strong>Quick check</strong> runs in your browser and nothing leaves the page. It measures how much your sentence lengths vary, how often you use phrases common in AI text ("delve", "it is important to note"), and how personal the voice is (contractions, "I").</p>
+          <p><strong>Analyze with AI</strong> sends the text to Claude (Anthropic's AI model), which reads each sentence and explains what feels generated. The final score blends both, 70% AI and 30% statistics. Your text is used only to produce the result and is not stored by this site.</p>
+          <p>If a sentence is flagged and you wrote it, that is common. Adding your own examples, opinions, and specific sources usually makes writing read as more human, and better.</p>
+        </details>
+      </section>
+    </aside>
+  </div>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const EXAMPLE = `Climate change is one of the most pressing issues of our time, and it is important to note that its effects are multifaceted. Moreover, rising global temperatures play a crucial role in shaping ecosystems, economies, and communities across the world. In today's rapidly evolving landscape, governments must navigate complex trade-offs to foster sustainable development.
+
+When I visited my grandparents' farm in Punjab last summer, the well they'd used for thirty years had gone dry. My grandfather just shrugged and said the rains come late now. That stuck with me more than any statistic I read for this essay.
+
+Furthermore, carbon pricing has emerged as a pivotal tool for addressing emissions. By leveraging market mechanisms, policymakers can harness economic incentives to drive meaningful change. In conclusion, a comprehensive approach that combines regulation, innovation, and public engagement is essential for a sustainable future.`;
+
+const PHRASES = ["delve","moreover","furthermore","additionally","in conclusion","it is important to note","it's important to note","plays a crucial role","play a crucial role","crucial role","tapestry","in today's","rapidly evolving","ever-evolving","navigate","landscape","foster","notably","pivotal","underscore","multifaceted","realm","showcase","seamless","robust","leverag","harness","vibrant","intricate","testament","comprehensive","meaningful","paramount","embark","holistic","nuanced","in summary","overall,","a myriad of","serves as","not only","essential for"];
+
+const $ = id => document.getElementById(id);
+const input = $("input");
+let sample = true, ctl = null, lastRun = null;
+
+function splitText(text){
+  const paras = text.replace(/\r/g,"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+  let idx = 0;
+  return paras.map(p => (p.match(/[^.!?]+(?:[.!?]+["')\]]*|$)\s*/g) || [p]).map(s=>s.trim()).filter(Boolean).map(s=>({i:idx++, text:s})));
+}
+const words = s => (s.match(/[A-Za-z’'-]+/g) || []);
+const clamp = x => Math.max(0, Math.min(1, x));
+function phraseHits(s){ const l = s.toLowerCase(); return PHRASES.filter(p => l.includes(p)); }
+
+function heuristics(paras){
+  const sents = paras.flat();
+  const lens = sents.map(s => words(s.text).length).filter(n => n>0);
+  const all = words(sents.map(s=>s.text).join(" ")).map(w=>w.toLowerCase());
+  const n = all.length || 1;
+  const mean = lens.reduce((a,b)=>a+b,0)/(lens.length||1);
+  const sd = Math.sqrt(lens.reduce((a,b)=>a+(b-mean)**2,0)/(lens.length||1));
+  const cv = mean ? sd/mean : 0;
+  // moving type-token ratio, window 50
+  let mattr = 0, win = Math.min(50, n), cnt = 0;
+  for(let i=0;i+win<=all.length;i+=5){ mattr += new Set(all.slice(i,i+win)).size/win; cnt++; }
+  mattr = cnt ? mattr/cnt : 0;
+  let hits = 0; const found = new Set();
+  sents.forEach(s => { const h = phraseHits(s.text); hits += h.length; h.forEach(x=>found.add(x)); });
+  const density = hits / n * 100;
+  const personal = all.filter(w => /^(i|i'm|i've|i'd|my|me|we|our)$/.test(w) || /n't$|'re$|'ve$|'ll$|'d$/.test(w)).length;
+  const bScore = clamp((0.6 - cv) / 0.35);
+  const pScore = clamp(density / 1.6);
+  const cScore = clamp(1 - personal / n * 30);
+  const score = Math.round((0.35*bScore + 0.4*pScore + 0.25*cScore) * 100);
+  const perSentence = sents.map(s => {
+    const h = phraseHits(s.text).length, len = words(s.text).length;
+    const pers = words(s.text).some(w => /^(i|my|me)$/i.test(w) || /n't$|'d$/i.test(w));
+    let v = 0.25 + h*0.25 + (len>=18 && len<=32 ? 0.1 : 0) - (pers ? 0.3 : 0) - (len<10 ? 0.1 : 0);
+    return {i:s.i, likelihood: Math.round(clamp(v)*100), reason: h ? `Uses stock phrasing: ${phraseHits(s.text).slice(0,3).map(x=>`"${x.replace(/,$/,"")}"`).join(", ")}.` : pers ? "Personal voice and specific detail read as human." : "No strong signals either way."};
+  });
+  return {score, cv, mean, mattr, hits, found:[...found], personal, n, perSentence,
+    signals:[
+      {label: cv < 0.35 ? "Sentence lengths are very uniform" : cv < 0.55 ? "Sentence lengths vary somewhat" : "Sentence lengths vary naturally", level: cv<0.35?"bad":cv<0.55?"warn":"good"},
+      {label: hits ? `${hits} stock AI phrase${hits>1?"s":""} found` : "No stock AI phrases found", level: density>1?"bad":hits?"warn":"good"},
+      {label: personal/n > 0.03 ? "Personal voice present (I, my, contractions)" : "Little personal voice", level: personal/n > 0.03 ? "good" : "warn"}
+    ]};
+}
+
+function verdictFor(s){
+  if (s >= 70) return {t:"Reads as mostly AI-generated", c:"var(--bad)"};
+  if (s >= 40) return {t:"Mixed: some passages read as AI", c:"var(--warn)"};
+  return {t:"Reads as mostly human-written", c:"var(--good)"};
+}
+
+let current = null; // {paras, map}
+let rewrites = new Map(); // i -> {text, why, used}
+
+const SWAPS = [
+  [/\bit is important to note that\s*/gi,""],[/\bit's important to note that\s*/gi,""],
+  [/\bmoreover,\s*/gi,"Also, "],[/\bfurthermore,\s*/gi,"On top of that, "],[/\badditionally,\s*/gi,"Also, "],
+  [/\bin conclusion,\s*/gi,"So, "],[/\bin summary,\s*/gi,"So, "],[/\boverall,\s*/gi,""],[/\bnotably,\s*/gi,""],
+  [/\bplays? a crucial role in\b/gi,m=>/plays/i.test(m)?"matters a lot for":"matter a lot for"],
+  [/\bin today's rapidly evolving landscape,?\s*/gi,"Today, "],[/\bin today's\b/gi,"in today's"],
+  [/\bdelve into\b/gi,"look at"],[/\bdelve\b/gi,"dig"],[/\bmultifaceted\b/gi,"complicated"],
+  [/\bpivotal\b/gi,"key"],[/\bleverag(e|ing)\b/gi,m=>/ing/i.test(m)?"using":"use"],[/\bharness(ing)?\b/gi,m=>/ing/i.test(m)?"using":"use"],
+  [/\bfoster\b/gi,"encourage"],[/\bnavigate\b/gi,"work through"],[/\butiliz(e|ing)\b/gi,m=>/ing/i.test(m)?"using":"use"],
+  [/\bcomprehensive\b/gi,"thorough"],[/\bmeaningful\b/gi,"real"],[/\bparamount\b/gi,"most important"],
+  [/\bserves as\b/gi,"is"],[/\ba myriad of\b/gi,"many"],[/\bshowcase\b/gi,"show"],[/\bseamless(ly)?\b/gi,"smooth$1"],
+];
+function offlineHumanize(s){
+  let t = s; SWAPS.forEach(([re,rep]) => { t = t.replace(re, rep); });
+  t = t.replace(/\s{2,}/g," ").replace(/^\s*([a-z])/, (m,c)=>c.toUpperCase());
+  return t;
+}
+
+function flagged(){
+  if (!current) return [];
+  return current.paras.flat().map(s => ({...s, r: current.map.get(s.i) || {likelihood:0}})).filter(s => s.r.likelihood >= 40);
+}
+
+function renderFlags(){
+  const list = flagged(), ol = $("flags"); ol.textContent = "";
+  $("flagCount").textContent = list.length;
+  $("rewrite").disabled = !list.length;
+  const anyUsed = [...rewrites.values()].some(r => r.used);
+  $("copyOut").hidden = $("useOut").hidden = !anyUsed;
+  if (!list.length){ const p = document.createElement("li"); p.className="empty"; p.style.border="0"; p.style.padding="0"; p.textContent = "No AI-like lines found. Nothing to humanize."; ol.append(p); return; }
+  list.forEach(s => {
+    const li = document.createElement("li");
+    const rw = rewrites.get(s.i);
+    if (rw && rw.used) li.classList.add("used");
+    const top = document.createElement("div"); top.className = "fl-top";
+    const a = document.createElement("span"); a.textContent = `Sentence ${s.i+1}`;
+    const b = document.createElement("span"); b.className = "pct" + (s.r.likelihood < 65 ? " mid" : ""); b.textContent = `${s.r.likelihood}% AI-like`;
+    top.append(a,b);
+    const o = document.createElement("p"); o.className = "orig";
+    const os = document.createElement("span"); os.className = "s " + (s.r.likelihood >= 65 ? "high" : "mid"); os.style.cursor="default"; os.textContent = s.text; o.append(os);
+    li.append(top, o);
+    if (s.r.reason){ const w = document.createElement("p"); w.className="why"; w.textContent = "Why flagged: " + s.r.reason; li.append(w); }
+    if (rw){
+      const n = document.createElement("p"); n.className = "new";
+      rw.text.split(/(\[[^\]]+\])/).forEach(part => {
+        if (/^\[[^\]]+\]$/.test(part)){ const m = document.createElement("mark"); m.className="ph"; m.textContent = part; n.append(m); }
+        else n.append(part);
+      });
+      li.append(n);
+      if (rw.why){ const w = document.createElement("p"); w.className="why"; w.textContent = "What changed: " + rw.why; li.append(w); }
+      const act = document.createElement("div"); act.className = "fl-act";
+      const use = document.createElement("button"); use.setAttribute("aria-pressed", rw.used ? "true":"false");
+      use.textContent = rw.used ? "Using this version" : "Use this version";
+      use.onclick = () => { rw.used = !rw.used; renderFlags(); };
+      act.append(use); li.append(act);
+    }
+    ol.append(li);
+  });
+}
+
+function revisedText(){
+  return current.paras.map(p => p.map(s => { const r = rewrites.get(s.i); return r && r.used ? r.text : s.text; }).join(" ")).join("\n\n");
+}
+
+async function humanize(){
+  const list = flagged(); if (!list.length) return;
+  if (!sample){
+    list.forEach(s => { const t = offlineHumanize(s.text); rewrites.set(s.i, {text:t, why: t === s.text ? "No stock phrases to swap. Try rewording this in your own words or adding a specific example." : "Swapped stock AI phrases for plainer words.", used: t !== s.text}); });
+    renderFlags(); setStatus("Offline humanize swapped stock phrases. The AI rewrite is unavailable right now."); return;
+  }
+  const context = current.paras.flat().filter(s => (current.map.get(s.i)||{likelihood:0}).likelihood < 40).map(s => s.text).join(" ").slice(0, 4000);
+  ctl = new AbortController();
+  busy(true); $("rewrite").disabled = true; setStatus("The AI is rewriting the flagged lines…");
+  try {
+    const r = (await api("/api/humanize", {targets: list.map(s => ({i:s.i, text:s.text})), context}, ctl.signal)).rewrites;
+    (Array.isArray(r) ? r : []).forEach(x => { const i = Number(x.i); if (list.some(s => s.i === i) && x.rewrite) rewrites.set(i, {text:String(x.rewrite).trim(), why:String(x.why||""), used:true}); });
+    renderFlags();
+    setStatus("Rewrites ready and selected. Untick any you don't want, fill in the bracketed parts, then copy or put the text back in the editor.");
+  } catch(e){
+    if (e && e.code === "cancelled") setStatus("Stopped.");
+    else setStatus(ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment.", true);
+  } finally { busy(false); renderFlags(); }
+}
+
+function render(paras, result){
+  const map = new Map(result.sentences.map(s => [s.i, s]));
+  current = {paras, map}; rewrites = new Map();
+  const rep = $("report"); rep.textContent = "";
+  paras.forEach(p => {
+    const el = document.createElement("p");
+    p.forEach((s, k) => {
+      const span = document.createElement("span");
+      const r = map.get(s.i) || {likelihood:0, reason:""};
+      span.className = "s " + (r.likelihood >= 65 ? "high" : r.likelihood >= 40 ? "mid" : "low");
+      span.textContent = s.text;
+      span.dataset.tip = `${r.likelihood}% AI-like. ${r.reason || ""}`;
+      span.tabIndex = 0;
+      el.append(span); if (k < p.length-1) el.append(" ");
+    });
+    rep.append(el);
+  });
+  const v = verdictFor(result.score);
+  $("ring").style.setProperty("--p", result.score);
+  $("ring").style.setProperty("--c", v.c);
+  $("score").textContent = result.score;
+  $("verdict").textContent = v.t;
+  $("source").textContent = result.source;
+  $("summary").textContent = result.summary || "";
+  const ul = $("signals"); ul.textContent = "";
+  result.signals.forEach(sg => {
+    const li = document.createElement("li");
+    const d = document.createElement("i"); d.className="dot";
+    d.style.background = `var(--${sg.level === "bad" ? "bad" : sg.level === "warn" ? "warn" : "good"})`;
+    const t = document.createElement("span"); t.textContent = sg.label;
+    li.append(d, t); ul.append(li);
+  });
+  renderFlags();
+}
+
+function stats(h){
+  $("stBurst").textContent = h.cv.toFixed(2);
+  $("stAvg").textContent = h.mean.toFixed(1);
+  $("stVocab").textContent = Math.round(h.mattr*100) + "%";
+  $("stPhr").textContent = h.hits;
+}
+
+function quickCheck(note){
+  const text = input.value.trim();
+  if (!text){ setStatus("Paste some text first.", true); return; }
+  const paras = splitText(text);
+  const h = heuristics(paras);
+  stats(h);
+  render(paras, {score:h.score, sentences:h.perSentence, signals:h.signals, source:"Quick check · statistics only",
+    summary: words(text).length < 80 ? "This text is short, so the score is less reliable. 150+ words gives a better read." : "Based on sentence variety, stock phrasing, and personal voice. Run Analyze with AI for a sentence-by-sentence read."});
+  setStatus(note || "");
+  return {paras, h};
+}
+
+function setStatus(msg, err){ const s=$("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
+function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; $("analyze").disabled = on; $("quick").disabled = on; }
+
+const ERR = {
+  rate_limited:"Too many checks in a short time. Wait a minute, then try again.",
+  too_long:"That text is too long. Check one section at a time (about 2,500 words max).",
+  need_code:"This site needs an access code. Enter it below the buttons, then try again.",
+  bad_code:"That access code isn't right. Check it and try again.",
+  not_configured:"The site owner hasn't finished setting up the AI yet. The quick check still works.",
+  refused:"The AI couldn't analyze this text. Showing the quick check instead.",
+  invalid_json:"The AI's answer came back in an unexpected format. Try again.",
+};
+
+async function analyze(){
+  const base = quickCheck();
+  if (!base) return;
+  if (!sample){ setStatus("Claude isn't available in this view, so this is the quick check only."); return; }
+  const {paras, h} = base;
+  ctl = new AbortController();
+  busy(true); setStatus("The AI is reading your text… this usually takes 15–40 seconds.");
+  try {
+    const r = await api("/api/analyze", {sentences: paras.flat().map(s => ({i:s.i, text:s.text}))}, ctl.signal);
+    const cs = Math.max(0, Math.min(100, Number(r.score) || 0));
+    const sents = Array.isArray(r.sentences) ? r.sentences.map(s => ({i:Number(s.i), likelihood:Math.max(0,Math.min(100,Number(s.likelihood)||0)), reason:String(s.reason||"")})) : h.perSentence;
+    const sig = (Array.isArray(r.signals) ? r.signals : []).slice(0,5).map(s => ({label:String(s.label||""), level:["bad","warn","good"].includes(s.level)?s.level:"warn"}));
+    const score = Math.round(cs*0.7 + h.score*0.3);
+    render(paras, {score, sentences:sents, signals: sig.length ? sig : h.signals, summary:String(r.summary||""),
+      source:`AI ${cs} · statistics ${h.score} · blended`});
+    setStatus("Done. Hover or tap a sentence to see why it was marked.");
+  } catch(e){
+    if (e && e.code === "cancelled") setStatus("Stopped. Showing the quick check.");
+    else setStatus(ERR[e && e.code] || "Something went wrong reaching the AI. Showing the quick check; try again in a moment.", true);
+  } finally { busy(false); }
+}
+
+function getCode(){ try { return localStorage.getItem("sr_code") || ""; } catch { return ""; } }
+$("code").value = getCode();
+$("code").addEventListener("change", () => { try { localStorage.setItem("sr_code", $("code").value.trim()); } catch {} });
+async function api(path, body, signal){
+  let res;
+  try {
+    res = await fetch(path, {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({...body, code: $("code").value.trim()}), signal});
+  } catch (e) {
+    throw {code: e && e.name === "AbortError" ? "cancelled" : "upstream_error"};
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (data.code === "need_code" || data.code === "bad_code") $("codeRow").hidden = false;
+    throw {code: data.code || "upstream_error"};
+  }
+  return data;
+}
+function updateCount(){ const n = words(input.value).length; $("count").textContent = `${n} word${n===1?"":"s"}`; }
+input.addEventListener("input", () => { updateCount(); $("inLabel").textContent = "Your text"; });
+$("analyze").onclick = analyze;
+$("quick").onclick = () => quickCheck("Quick check done. Nothing left your browser.");
+$("stop").onclick = () => ctl && ctl.abort();
+$("rewrite").onclick = humanize;
+$("copyOut").onclick = async () => {
+  const t = revisedText();
+  try { await navigator.clipboard.writeText(t); setStatus("Revised text copied."); }
+  catch { input.value = t; updateCount(); input.focus(); input.select(); setStatus("Copy was blocked here, so the revised text is in the editor and selected. Press Ctrl+C / Cmd+C."); }
+};
+$("useOut").onclick = () => { input.value = revisedText(); updateCount(); $("inLabel").textContent = "Your text · revised"; quickCheck("Revised text is in the editor. Fill in any [bracketed] parts, then check it again."); input.scrollIntoView({behavior:"smooth", block:"center"}); };
+$("clear").onclick = () => { input.value=""; updateCount(); $("inLabel").textContent="Your text"; input.focus(); };
+$("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (f.size > 2e6){ setStatus("That file is over 2 MB. Paste the text instead.", true); return; }
+  const rd = new FileReader();
+  rd.onload = () => { input.value = String(rd.result); updateCount(); $("inLabel").textContent = "Your text · " + f.name; quickCheck("Loaded " + f.name + ". Quick check shown; run Analyze with AI for detail."); };
+  rd.readAsText(f); e.target.value = "";
+};
+
+// tooltip
+const tip = $("tip");
+function showTip(el, x, y){ tip.textContent = el.dataset.tip; tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, x - w/2)) + "px";
+  tip.style.top = (y - h - 12 < 8 ? y + 18 : y - h - 12) + "px"; }
+$("report").addEventListener("mousemove", e => { const s = e.target.closest(".s"); if (s) showTip(s, e.clientX, e.clientY); else tip.hidden = true; });
+$("report").addEventListener("mouseleave", () => tip.hidden = true);
+$("report").addEventListener("focusin", e => { const s = e.target.closest(".s"); if (s){ const r = s.getBoundingClientRect(); showTip(s, r.left + r.width/2, r.top); } });
+$("report").addEventListener("focusout", () => tip.hidden = true);
+$("report").addEventListener("click", e => { const s = e.target.closest(".s"); if (s) showTip(s, e.clientX, e.clientY); });
+
+input.value = EXAMPLE; updateCount();
+quickCheck("Example essay loaded and checked offline. Paste your own text to replace it.");
+
+</script>
+
+</body>
+</html>
