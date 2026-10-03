@@ -47,19 +47,27 @@ export function extractJson(text) {
   return null;
 }
 
+function apiKey() {
+  // Tolerate stray spaces, line breaks or quotes pasted into the Vercel setting.
+  return String(process.env.ANTHROPIC_API_KEY || "").trim().replace(/^["']|["']$/g, "").trim();
+}
+
 export async function askClaude(prompt, maxTokens) {
+  const key = apiKey();
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "x-api-key": key,
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }),
   });
   const data = await r.json().catch(() => ({}));
   if (r.status === 429) throw { status: 429, code: "rate_limited" };
-  if (!r.ok) { console.error("Anthropic API error", r.status, data); throw { status: 502, code: "upstream_error" }; }
+  if (!r.ok) {
+    console.error("Anthropic API error", r.status, data);
+    if (r.status === 401) console.error(`Key check: starts with "${key.slice(0, 7)}", ${key.length} characters (a valid key starts with "sk-ant-" and is about 108 characters)`); throw { status: 502, code: "upstream_error" }; }
   if (data.stop_reason === "refusal") throw { status: 422, code: "refused" };
   const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
   const json = extractJson(text);
