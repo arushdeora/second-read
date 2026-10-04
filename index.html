@@ -117,7 +117,7 @@ details p{margin:8px 0 0}
       <div class="actions">
         <button class="primary" id="analyze">Analyze with AI</button>
         <button id="quick">Quick check (offline)</button>
-        <label class="file">Upload .txt / .md<input type="file" id="file" accept=".txt,.md,text/plain,text/markdown"></label>
+        <label class="file">Upload Word, PDF or text<input type="file" id="file" accept=".docx,.pdf,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,text/plain,text/markdown"></label>
         <button id="clear">Clear</button>
         <button id="stop" hidden>Stop</button>
       </div>
@@ -157,6 +157,10 @@ details p{margin:8px 0 0}
           </div>
         </div>
         <p class="summary" id="summary" style="margin-top:14px"></p>
+        <div class="actions" id="reportActions" style="margin-top:14px">
+          <button id="dlReport" type="button">Download report</button>
+          <button id="copyReport" type="button">Copy summary</button>
+        </div>
       </section>
 
       <section class="panel">
@@ -395,7 +399,7 @@ function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; $("analyze").
 
 const ERR = {
   rate_limited:"Too many checks in a short time. Wait a minute, then try again.",
-  too_long:"That text is too long. Check one section at a time (about 2,500 words max).",
+  too_long:"That text is too long. Check one section at a time (about 3,000 words max).",
   need_code:"This site needs an access code. Enter it below the buttons, then try again.",
   bad_code:"That access code isn't right. Check it and try again.",
   not_configured:"The site owner hasn't finished setting up the AI yet. The quick check still works.",
@@ -455,12 +459,93 @@ $("copyOut").onclick = async () => {
 };
 $("useOut").onclick = () => { input.value = revisedText(); updateCount(); $("inLabel").textContent = "Your text · revised"; quickCheck("Revised text is in the editor. Fill in any [bracketed] parts, then check it again."); input.scrollIntoView({behavior:"smooth", block:"center"}); };
 $("clear").onclick = () => { input.value=""; updateCount(); $("inLabel").textContent="Your text"; input.focus(); };
-$("file").onchange = e => {
-  const f = e.target.files[0]; if (!f) return;
-  if (f.size > 2e6){ setStatus("That file is over 2 MB. Paste the text instead.", true); return; }
-  const rd = new FileReader();
-  rd.onload = () => { input.value = String(rd.result); updateCount(); $("inLabel").textContent = "Your text · " + f.name; quickCheck("Loaded " + f.name + ". Quick check shown; run Analyze with AI for detail."); };
-  rd.readAsText(f); e.target.value = "";
+function loadScript(src){
+  return new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = src; sc.onload = ok; sc.onerror = () => bad(new Error("load")); document.head.append(sc); });
+}
+async function readDocx(f){
+  if (!window.mammoth) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+  const r = await window.mammoth.extractRawText({ arrayBuffer: await f.arrayBuffer() });
+  return r.value;
+}
+async function readPdf(f){
+  if (!window.pdfjsLib){
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  const doc = await window.pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+  const pages = [];
+  for (let i = 1; i <= Math.min(doc.numPages, 40); i++){
+    const tc = await (await doc.getPage(i)).getTextContent();
+    let line = "", out = [];
+    tc.items.forEach(it => { line += it.str; if (it.hasEOL){ out.push(line); line = ""; } else line += " "; });
+    if (line) out.push(line);
+    pages.push(out.join("\n"));
+  }
+  return pages.join("\n\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n");
+}
+$("file").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  if (f.size > 15e6){ setStatus("That file is over 15 MB. Paste the text instead.", true); return; }
+  const name = f.name.toLowerCase();
+  setStatus("Reading " + f.name + "…");
+  try {
+    let text;
+    if (name.endsWith(".docx")) text = await readDocx(f);
+    else if (name.endsWith(".pdf")) text = await readPdf(f);
+    else if (name.endsWith(".doc")) { setStatus("Old .doc files aren't supported. In Word, choose Save As → .docx, then upload again.", true); return; }
+    else text = await f.text();
+    text = String(text || "").trim();
+    if (!text){ setStatus("No text found in " + f.name + ". If it's a scanned PDF, copy and paste the text instead.", true); return; }
+    input.value = text; updateCount(); $("inLabel").textContent = "Your text · " + f.name;
+    quickCheck("Loaded " + f.name + ". Quick check shown; run Analyze with AI for a sentence-by-sentence read.");
+  } catch (err) {
+    setStatus("Couldn't read " + f.name + ". Try saving it again, or copy and paste the text.", true);
+  }
+};
+
+/* ---------- Report ---------- */
+function esc(t){ return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function reportData(){
+  return {
+    score: $("score").textContent, verdict: $("verdict").textContent, source: $("source").textContent, summary: $("summary").textContent,
+    signals: [...document.querySelectorAll("#signals li")].map(li => li.textContent.trim()),
+    paras: current ? current.paras.map(p => p.map(s => ({ text: s.text, r: current.map.get(s.i) || { likelihood: 0, reason: "" } }))) : [],
+    date: new Date().toLocaleString("en-CA", { dateStyle: "long", timeStyle: "short" })
+  };
+}
+function reportHtml(d){
+  const body = d.paras.map(p => "<p>" + p.map(s => {
+    const cls = s.r.likelihood >= 65 ? "h" : s.r.likelihood >= 40 ? "m" : "";
+    return cls ? `<span class="${cls}" title="${esc(s.r.likelihood + "% AI-like. " + (s.r.reason || ""))}">${esc(s.text)}</span>` : esc(s.text);
+  }).join(" ") + "</p>").join("");
+  const flagged = d.paras.flat().filter(s => s.r.likelihood >= 40);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Second Read report</title>
+<style>body{font:15px/1.6 Georgia,serif;color:#15233f;background:#f4f6f9;margin:0;padding:24px 16px}main{max-width:780px;margin:0 auto;background:#fff;border:1px solid #d8dee8;border-radius:6px;padding:28px}
+h1{margin:0;color:#1d3a6e;font-size:1.7rem}h1 i{color:#2b7a57}.meta{color:#5b6579;font:13px system-ui,sans-serif;margin:4px 0 18px}.score{font-size:2.4rem;font-weight:700;color:#1d3a6e}
+h2{font-size:1.05rem;margin:22px 0 8px;color:#1d3a6e}.h{background:rgba(200,64,58,.2)}.m{background:rgba(226,163,32,.28)}ul{padding-left:20px}li{margin:4px 0}.note{font:13px system-ui,sans-serif;color:#5b6579;border-left:3px solid #2b7a57;padding:6px 12px;margin-top:22px}</style></head><body><main>
+<h1>Second <i>Read</i> report</h1><div class="meta">${esc(d.date)} · ${esc(d.source)}</div>
+<div><span class="score">${esc(d.score)}</span> / 100 AI likelihood · <b>${esc(d.verdict)}</b></div>
+${d.summary ? `<p>${esc(d.summary)}</p>` : ""}
+${d.signals.length ? `<h2>Writing signals</h2><ul>${d.signals.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+${flagged.length ? `<h2>Flagged sentences (${flagged.length})</h2><ul>${flagged.map(s => `<li><b>${s.r.likelihood}%</b> · ${esc(s.text)}${s.r.reason ? `<br><small>${esc(s.r.reason)}</small>` : ""}</li>`).join("")}</ul>` : ""}
+<h2>Full text</h2><div>${body}</div>
+<p class="note">A score is a signal, not proof. AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Made with Second Read · second-read-three.vercel.app</p>
+</main></body></html>`;
+}
+$("dlReport").onclick = () => {
+  if (!current){ setStatus("Run a check first, then download the report.", true); return; }
+  const blob = new Blob([reportHtml(reportData())], { type: "text/html" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "second-read-report-" + new Date().toISOString().slice(0, 10) + ".html";
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  setStatus("Report downloaded. Open it in any browser, or print it to PDF.");
+};
+$("copyReport").onclick = async () => {
+  if (!current){ setStatus("Run a check first.", true); return; }
+  const d = reportData();
+  const flagged = d.paras.flat().filter(s => s.r.likelihood >= 40);
+  const txt = `Second Read result: ${d.score}/100 AI likelihood (${d.verdict}).\n${d.summary}\n\nFlagged sentences:\n` + (flagged.map(s => `- [${s.r.likelihood}%] ${s.text}`).join("\n") || "- none") + `\n\n(A score is a signal, not proof.)`;
+  try { await navigator.clipboard.writeText(txt); setStatus("Summary copied."); } catch { setStatus("Copy was blocked by the browser.", true); }
 };
 
 // tooltip
