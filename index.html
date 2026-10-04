@@ -45,6 +45,13 @@ button:disabled{opacity:.55;cursor:default}
 .s{border-radius:3px;padding:1px 0;transition:background .2s;cursor:help}
 .s.high{background:var(--hl-high)} .s.mid{background:var(--hl-mid)}
 .s:hover{outline:1px solid var(--muted)}
+.s.pl{text-decoration:underline wavy #6b4fbb;text-decoration-thickness:1.5px;text-underline-offset:5px}
+.pmatch{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding:10px 0}
+.pmatch:first-child{border-top:0}
+.pmatch q{font:15px/1.5 var(--display)}
+.pmatch a{color:var(--accent);font-weight:600;word-break:break-word}
+.pbig{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.pbig b{font:700 2rem var(--display);font-variant-numeric:tabular-nums}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted);margin-top:4px}
 .sw{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle;border:1px solid var(--line)}
 .side{display:flex;flex-direction:column;gap:18px}
@@ -116,6 +123,7 @@ details p{margin:8px 0 0}
       <textarea id="input" aria-labelledby="inLabel" placeholder="Paste your assignment here (at least 80 words works best)…"></textarea>
       <div class="actions">
         <button class="primary" id="analyze">Analyze with AI</button>
+        <button id="plagBtn">Check plagiarism</button>
         <button id="quick">Quick check (offline)</button>
         <label class="file">Upload Word, PDF or text<input type="file" id="file" accept=".docx,.pdf,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,text/plain,text/markdown"></label>
         <button id="clear">Clear</button>
@@ -127,7 +135,7 @@ details p{margin:8px 0 0}
 
       <div style="margin-top:22px">
         <div class="row"><span class="label">Sentence map</span>
-          <div class="legend"><span><i class="sw" style="background:var(--hl-high)"></i>Likely AI</span><span><i class="sw" style="background:var(--hl-mid)"></i>Mixed</span><span><i class="sw"></i>Likely human</span></div>
+          <div class="legend"><span><i class="sw" style="background:var(--hl-high)"></i>Likely AI</span><span><i class="sw" style="background:var(--hl-mid)"></i>Mixed</span><span><i class="sw"></i>Likely human</span><span style="text-decoration:underline wavy #6b4fbb;text-underline-offset:4px">Matches a web source</span></div>
         </div>
         <div id="report"></div>
       </div>
@@ -161,6 +169,11 @@ details p{margin:8px 0 0}
           <button id="dlReport" type="button">Download report</button>
           <button id="copyReport" type="button">Copy summary</button>
         </div>
+      </section>
+
+      <section class="panel" id="plagPanel">
+        <span class="label">Plagiarism check</span>
+        <div id="plagBox" style="margin-top:10px"><p class="summary" style="color:var(--muted)">Searches the web for your most distinctive sentences to see if any were copied. Tap <b>Check plagiarism</b> to run it.</p></div>
       </section>
 
       <section class="panel">
@@ -253,7 +266,8 @@ function verdictFor(s){
   return {t:"Reads as mostly human-written", c:"var(--good)"};
 }
 
-let current = null; // {paras, map}
+let current = null;
+let plag = null; // {texts:Set, data} // {paras, map}
 let rewrites = new Map(); // i -> {text, why, used}
 
 const SWAPS = [
@@ -349,7 +363,7 @@ function render(paras, result){
     p.forEach((s, k) => {
       const span = document.createElement("span");
       const r = map.get(s.i) || {likelihood:0, reason:""};
-      span.className = "s " + (r.likelihood >= 65 ? "high" : r.likelihood >= 40 ? "mid" : "low");
+      span.className = "s " + (r.likelihood >= 65 ? "high" : r.likelihood >= 40 ? "mid" : "low") + (plag && plag.texts.has(s.text) ? " pl" : "");
       span.textContent = s.text;
       span.dataset.tip = `${r.likelihood}% AI-like. ${r.reason || ""}`;
       span.tabIndex = 0;
@@ -395,7 +409,7 @@ function quickCheck(note){
 }
 
 function setStatus(msg, err){ const s=$("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
-function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; $("analyze").disabled = on; $("quick").disabled = on; }
+function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; $("analyze").disabled = on; $("quick").disabled = on; $("plagBtn").disabled = on; }
 
 const ERR = {
   rate_limited:"Too many checks in a short time. Wait a minute, then try again.",
@@ -404,6 +418,7 @@ const ERR = {
   bad_code:"That access code isn't right. Check it and try again.",
   not_configured:"The site owner hasn't finished setting up the AI yet. The quick check still works.",
   refused:"The AI couldn't analyze this text. Showing the quick check instead.",
+  search_disabled:"The plagiarism check isn't switched on yet. The site owner needs to enable web search in the Anthropic Console.",
   invalid_json:"The AI's answer came back in an unexpected format. Try again.",
 };
 
@@ -447,7 +462,7 @@ async function api(path, body, signal){
   return data;
 }
 function updateCount(){ const n = words(input.value).length; $("count").textContent = `${n} word${n===1?"":"s"}`; }
-input.addEventListener("input", () => { updateCount(); $("inLabel").textContent = "Your text"; });
+input.addEventListener("input", () => { updateCount(); $("inLabel").textContent = "Your text"; if (plag){ plag = null; $("plagBox").innerHTML = '<p class="summary" style="color:var(--muted)">Your text changed. Tap <b>Check plagiarism</b> to check it again.</p>'; } });
 $("analyze").onclick = analyze;
 $("quick").onclick = () => quickCheck("Quick check done. Nothing left your browser.");
 $("stop").onclick = () => ctl && ctl.abort();
@@ -503,6 +518,57 @@ $("file").onchange = async e => {
   }
 };
 
+/* ---------- Plagiarism ---------- */
+function renderPlag(){
+  const box = $("plagBox"); box.textContent = "";
+  if (!plag) return;
+  const d = plag.data;
+  const top = document.createElement("div"); top.className = "pbig";
+  const b = document.createElement("b"); b.textContent = d.originality + "%";
+  b.style.color = d.matches.length ? (d.originality < 70 ? "var(--bad)" : "var(--warn)") : "var(--good)";
+  const sp = document.createElement("span"); sp.textContent = "original · " + d.checked + " sentence" + (d.checked === 1 ? "" : "s") + " searched";
+  sp.style.color = "var(--muted)"; top.append(b, sp); box.append(top);
+  const p = document.createElement("p"); p.className = "summary";
+  p.textContent = d.summary || (d.matches.length ? `${d.matches.length} sentence${d.matches.length === 1 ? "" : "s"} matched text found online.` : "No copied text found in the sentences checked.");
+  box.append(p);
+  const map = new Map(current ? current.paras.flat().map(s => [s.i, s.text]) : []);
+  d.matches.forEach(m => {
+    const row = document.createElement("div"); row.className = "pmatch";
+    const q = document.createElement("q"); q.textContent = map.get(m.i) || ("Sentence " + (m.i + 1));
+    const meta = document.createElement("span"); meta.style.fontSize = ".85rem"; meta.style.color = "var(--muted)";
+    meta.textContent = (m.match === "exact" ? "Exact match" : "Close match") + (m.note ? " · " + m.note : "");
+    const a = document.createElement("a"); a.href = m.url; a.target = "_blank"; a.rel = "noopener nofollow"; a.textContent = m.title || m.url;
+    row.append(q, meta, a); box.append(row);
+  });
+  const n = document.createElement("p"); n.className = "summary"; n.style.cssText = "color:var(--muted);font-size:.82rem;margin-top:8px";
+  n.textContent = "Checks the most distinctive sentences against public web pages. It can't see paywalled journals, other students' papers, or private databases, so it won't catch everything.";
+  box.append(n);
+}
+$("plagBtn").onclick = async () => {
+  const base = current ? { paras: current.paras } : quickCheck();
+  if (!base) return;
+  const paras = base.paras || current.paras;
+  const sents = paras.flat();
+  if (sents.length < 2){ setStatus("Add a little more text before checking for plagiarism.", true); return; }
+  ctl = new AbortController();
+  busy(true); setStatus("Searching the web for matching text… this can take up to a minute.");
+  $("plagBox").innerHTML = '<div class="bar"><i></i></div>';
+  try {
+    const d = await api("/api/plagiarism", { sentences: sents.map(s => ({ i: s.i, text: s.text })) }, ctl.signal);
+    const textByI = new Map(sents.map(s => [s.i, s.text]));
+    plag = { data: d, texts: new Set(d.matches.map(m => textByI.get(m.i)).filter(Boolean)) };
+    renderPlag();
+    document.querySelectorAll("#report .s").forEach(el => { el.classList.toggle("pl", plag.texts.has(el.textContent)); });
+    setStatus(d.matches.length ? "Plagiarism check done. Matching sentences are underlined in purple." : "Plagiarism check done. No copied text found in the sentences checked.");
+  } catch (e) {
+    $("plagBox").textContent = "";
+    const p = document.createElement("p"); p.className = "summary"; p.style.color = "var(--bad)";
+    p.textContent = e && e.code === "cancelled" ? "Stopped." : (ERR[e && e.code] || "The plagiarism check couldn't finish. Try again in a moment.");
+    $("plagBox").append(p);
+    setStatus("");
+  } finally { busy(false); }
+};
+
 /* ---------- Report ---------- */
 function esc(t){ return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function reportData(){
@@ -510,6 +576,7 @@ function reportData(){
     score: $("score").textContent, verdict: $("verdict").textContent, source: $("source").textContent, summary: $("summary").textContent,
     signals: [...document.querySelectorAll("#signals li")].map(li => li.textContent.trim()),
     paras: current ? current.paras.map(p => p.map(s => ({ text: s.text, r: current.map.get(s.i) || { likelihood: 0, reason: "" } }))) : [],
+    plag: plag ? plag.data : null,
     date: new Date().toLocaleString("en-CA", { dateStyle: "long", timeStyle: "short" })
   };
 }
@@ -528,6 +595,7 @@ h2{font-size:1.05rem;margin:22px 0 8px;color:#1d3a6e}.h{background:rgba(200,64,5
 ${d.summary ? `<p>${esc(d.summary)}</p>` : ""}
 ${d.signals.length ? `<h2>Writing signals</h2><ul>${d.signals.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 ${flagged.length ? `<h2>Flagged sentences (${flagged.length})</h2><ul>${flagged.map(s => `<li><b>${s.r.likelihood}%</b> · ${esc(s.text)}${s.r.reason ? `<br><small>${esc(s.r.reason)}</small>` : ""}</li>`).join("")}</ul>` : ""}
+${d.plag ? `<h2>Plagiarism check · ${d.plag.originality}% original</h2>${d.plag.matches.length ? `<ul>${d.plag.matches.map(m => `<li>${m.match === "exact" ? "Exact" : "Close"} match: <a href="${esc(m.url)}">${esc(m.title || m.url)}</a>${m.note ? ` · ${esc(m.note)}` : ""}</li>`).join("")}</ul>` : "<p>No copied text found in the sentences checked.</p>"}` : ""}
 <h2>Full text</h2><div>${body}</div>
 <p class="note">A score is a signal, not proof. AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Made with Second Read · second-read-three.vercel.app</p>
 </main></body></html>`;
