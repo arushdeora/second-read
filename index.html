@@ -117,7 +117,7 @@ details p{margin:8px 0 0}
   <div class="grid">
     <section class="panel">
       <div class="row">
-        <span class="label" id="inLabel">Your text · example loaded</span>
+        <span class="label" id="inLabel">Your text</span>
         <span class="meta" id="count">0 words</span>
       </div>
       <textarea id="input" aria-labelledby="inLabel" placeholder="Paste your assignment here (at least 80 words works best)…"></textarea>
@@ -144,7 +144,7 @@ details p{margin:8px 0 0}
         <div class="row">
           <span class="label">Flagged lines · <span id="flagCount">0</span></span>
           <div class="actions" style="margin:0">
-            <button class="primary" id="rewrite">Humanize flagged lines</button>
+            <button class="primary" id="rewrite" disabled>Humanize flagged lines</button>
             <button id="copyOut" hidden>Copy revised text</button>
             <button id="useOut" hidden>Put revised text in editor</button>
           </div>
@@ -628,8 +628,8 @@ $("report").addEventListener("focusin", e => { const s = e.target.closest(".s");
 $("report").addEventListener("focusout", () => tip.hidden = true);
 $("report").addEventListener("click", e => { const s = e.target.closest(".s"); if (s) showTip(s, e.clientX, e.clientY); });
 
-input.value = EXAMPLE; updateCount();
-quickCheck("Example essay loaded and checked offline. Paste your own text to replace it.");
+updateCount();
+$("report").innerHTML = '<p style="color:var(--muted);font:15px/1.6 var(--body)">Paste your assignment above or upload a Word, PDF or text file, then choose a check. Your sentences will appear here, highlighted.</p>';
 
 </script>
 
