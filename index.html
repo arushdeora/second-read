@@ -173,7 +173,7 @@ details p{margin:8px 0 0}
 
       <section class="panel" id="plagPanel">
         <span class="label">Plagiarism check</span>
-        <div id="plagBox" style="margin-top:10px"><p class="summary" style="color:var(--muted)">Searches the web for your most distinctive sentences to see if any were copied. Tap <b>Check plagiarism</b> to run it.</p></div>
+        <div id="plagBox" style="margin-top:10px"><p class="summary" style="color:var(--muted)">Compares your most distinctive sentences with published books and websites to see if any were copied. Tap <b>Check plagiarism</b> to run it.</p></div>
       </section>
 
       <section class="panel">
@@ -536,12 +536,12 @@ function renderPlag(){
     const row = document.createElement("div"); row.className = "pmatch";
     const q = document.createElement("q"); q.textContent = map.get(m.i) || ("Sentence " + (m.i + 1));
     const meta = document.createElement("span"); meta.style.fontSize = ".85rem"; meta.style.color = "var(--muted)";
-    meta.textContent = (m.match === "exact" ? "Exact match" : "Close match") + (m.note ? " · " + m.note : "");
+    meta.textContent = (m.type === "book" ? "📖 Book · " : "🌐 Website · ") + (m.match === "exact" ? "Exact match" : "Close match") + (m.note ? " · " + m.note : "");
     const a = document.createElement("a"); a.href = m.url; a.target = "_blank"; a.rel = "noopener nofollow"; a.textContent = m.title || m.url;
     row.append(q, meta, a); box.append(row);
   });
   const n = document.createElement("p"); n.className = "summary"; n.style.cssText = "color:var(--muted);font-size:.82rem;margin-top:8px";
-  n.textContent = "Checks the most distinctive sentences against public web pages. It can't see paywalled journals, other students' papers, or private databases, so it won't catch everything.";
+  n.textContent = "Checks your most distinctive sentences against websites and books that are searchable online (Google Books, Project Gutenberg, Internet Archive). It can't see full copyrighted books, paywalled journals, or other students' papers, so it won't catch everything.";
   box.append(n);
 }
 $("plagBtn").onclick = async () => {
@@ -551,7 +551,7 @@ $("plagBtn").onclick = async () => {
   const sents = paras.flat();
   if (sents.length < 2){ setStatus("Add a little more text before checking for plagiarism.", true); return; }
   ctl = new AbortController();
-  busy(true); setStatus("Searching the web for matching text… this can take up to a minute.");
+  busy(true); setStatus("Searching books and websites for matching text… this can take up to a minute.");
   $("plagBox").innerHTML = '<div class="bar"><i></i></div>';
   try {
     const d = await api("/api/plagiarism", { sentences: sents.map(s => ({ i: s.i, text: s.text })) }, ctl.signal);
@@ -595,7 +595,7 @@ h2{font-size:1.05rem;margin:22px 0 8px;color:#1d3a6e}.h{background:rgba(200,64,5
 ${d.summary ? `<p>${esc(d.summary)}</p>` : ""}
 ${d.signals.length ? `<h2>Writing signals</h2><ul>${d.signals.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 ${flagged.length ? `<h2>Flagged sentences (${flagged.length})</h2><ul>${flagged.map(s => `<li><b>${s.r.likelihood}%</b> · ${esc(s.text)}${s.r.reason ? `<br><small>${esc(s.r.reason)}</small>` : ""}</li>`).join("")}</ul>` : ""}
-${d.plag ? `<h2>Plagiarism check · ${d.plag.originality}% original</h2>${d.plag.matches.length ? `<ul>${d.plag.matches.map(m => `<li>${m.match === "exact" ? "Exact" : "Close"} match: <a href="${esc(m.url)}">${esc(m.title || m.url)}</a>${m.note ? ` · ${esc(m.note)}` : ""}</li>`).join("")}</ul>` : "<p>No copied text found in the sentences checked.</p>"}` : ""}
+${d.plag ? `<h2>Plagiarism check · ${d.plag.originality}% original</h2>${d.plag.matches.length ? `<ul>${d.plag.matches.map(m => `<li>${m.type === "book" ? "Book" : "Website"} · ${m.match === "exact" ? "Exact" : "Close"} match: <a href="${esc(m.url)}">${esc(m.title || m.url)}</a>${m.note ? ` · ${esc(m.note)}` : ""}</li>`).join("")}</ul>` : "<p>No copied text found in the sentences checked.</p>"}` : ""}
 <h2>Full text</h2><div>${body}</div>
 <p class="note">A score is a signal, not proof. AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Made with Second Read · second-read-three.vercel.app</p>
 </main></body></html>`;
