@@ -3,8 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Check your assignment for AI-like writing, see which sentences are flagged, and revise them.">
-<title>Second Read</title>
+<meta name="description" content="Second Read is a free AI detector and plagiarism checker for university students. Paste or upload your essay (Word or PDF), see which sentences sound AI-written, check for copied text from books and websites, and rewrite flagged lines. No sign-up.">
+<title>Second Read – Free AI Detector &amp; Plagiarism Checker for Students</title>
+<link rel="canonical" href="https://second-read-three.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://second-read-three.vercel.app/">
+<meta property="og:title" content="Second Read – Free AI Detector &amp; Plagiarism Checker for Students">
+<meta property="og:description" content="Check your assignment for AI-written sentences and copied text from books and websites. Free, no sign-up.">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Second Read","url":"https://second-read-three.vercel.app/","applicationCategory":"EducationalApplication","operatingSystem":"Any","description":"Free AI writing detector and plagiarism checker for university students, with sentence highlights, rewrite suggestions and Word/PDF upload.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"audience":{"@type":"EducationalAudience","educationalRole":"student"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -98,6 +107,13 @@ li.used .orig{text-decoration:line-through;opacity:.6}
 .empty{color:var(--muted);font-size:.9rem}
 details{font-size:.88rem;color:var(--muted)}
 details summary{cursor:pointer;color:var(--ink);font-weight:500}
+.about{margin:36px 0 12px;padding-top:24px;border-top:1px solid var(--line, #dfe3ea);max-width:900px}
+.about h2{font-size:1.25rem;margin:0 0 10px}
+.about h3{font-size:1rem;margin:0 0 6px}
+.about p{line-height:1.6}
+.about-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:18px 0 26px}
+@media (max-width:760px){.about-grid{grid-template-columns:1fr}}
+.about details{border-top:1px solid var(--line, #dfe3ea);padding:12px 0}
 details p{margin:8px 0 0}
 </style>
 </head>
@@ -201,6 +217,22 @@ details p{margin:8px 0 0}
       </section>
     </aside>
   </div>
+
+  <section class="about" aria-labelledby="aboutH">
+    <h2 id="aboutH">A free AI detector and plagiarism checker for students</h2>
+    <p>Second Read helps university and college students check an assignment before they submit it. Paste your essay or upload a Word (.docx) or PDF file, and Second Read highlights the sentences that read as AI-written, explains why, and suggests a more natural rewrite. It can also check your text for plagiarism by comparing your most distinctive sentences with published books and websites. It is free, there is no sign-up, and your text is not stored.</p>
+    <div class="about-grid">
+      <div><h3>1. Check for AI writing</h3><p>Each sentence gets a likelihood score. Flagged lines are highlighted so you can see exactly what sounds machine-written, such as stock phrases, flat rhythm, or vague claims.</p></div>
+      <div><h3>2. Check for plagiarism</h3><p>Second Read searches the web and book sources like Google Books, Project Gutenberg and the Internet Archive for sentences that match yours, and links to each source it finds.</p></div>
+      <div><h3>3. Revise and download</h3><p>Humanize flagged lines with one click, then download a report with your scores, flagged sentences and sources to keep for your own records.</p></div>
+    </div>
+    <h2>Frequently asked questions</h2>
+    <details><summary>Is Second Read free?</summary><p>Yes. Second Read is completely free for everyone, with no account, no payment and no word-count paywall.</p></details>
+    <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Scores are a signal, not proof. Formal academic writing and writing by non-native English speakers are flagged more often, so use the results to revise your work, never as evidence against someone.</p></details>
+    <details><summary>Can it check a Word document or PDF?</summary><p>Yes. Click upload and choose a .docx, .pdf or .txt file. The text is read in your browser and placed in the box for checking.</p></details>
+    <details><summary>Does the plagiarism checker look at books?</summary><p>Yes. Along with websites, it searches book sources such as Google Books, Project Gutenberg and the Internet Archive, and marks each match as a book or a website.</p></details>
+    <details><summary>Is my essay saved or shared?</summary><p>No. Your text is only used to produce your result and is not stored by this site.</p></details>
+  </section>
 </div>
 <div id="tip" hidden></div>
 
