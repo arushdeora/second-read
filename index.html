@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Second Read is a free AI detector and plagiarism checker for university students. Paste or upload your essay (Word or PDF), see which sentences sound AI-written, check for copied text from books and websites, and rewrite flagged lines. No sign-up.">
+<meta name="description" content="Second Read is a free AI detector and plagiarism checker for university students. Paste or upload your essay (Word or PDF), see which sentences sound AI-written, check for copied text from books and websites, and rewrite flagged lines or the full text. Free with Google sign-in.">
 <title>Second Read – Free AI Detector &amp; Plagiarism Checker for Students</title>
 <link rel="canonical" href="https://second-read-three.vercel.app/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://second-read-three.vercel.app/">
 <meta property="og:title" content="Second Read – Free AI Detector &amp; Plagiarism Checker for Students">
-<meta property="og:description" content="Check your assignment for AI-written sentences and copied text from books and websites. Free, no sign-up.">
+<meta property="og:description" content="Check your assignment for AI-written sentences and copied text from books and websites. Free with Google sign-in.">
 <meta name="twitter:card" content="summary">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"WebApplication","name":"Second Read","url":"https://second-read-three.vercel.app/","applicationCategory":"EducationalApplication","operatingSystem":"Any","description":"Free AI writing detector and plagiarism checker for university students, with sentence highlights, rewrite suggestions and Word/PDF upload.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"audience":{"@type":"EducationalAudience","educationalRole":"student"}}
@@ -87,6 +87,18 @@ ul.sig li{display:flex;gap:10px;align-items:baseline;font-size:.9rem}
 @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
 @media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}
 #tip{position:fixed;z-index:10;max-width:280px;background:var(--ink);color:var(--paper);font:13px/1.45 var(--body);padding:8px 10px;border-radius:6px;pointer-events:none}
+.acct{display:flex;align-items:center;gap:10px;font-size:.88rem;color:var(--muted)}
+.acct img{width:28px;height:28px;border-radius:50%}
+.acct button{padding:5px 10px;font-size:.82rem}
+.signin-hint{font-size:.88rem;color:var(--muted)}
+.gate{position:fixed;inset:0;background:rgba(21,35,63,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.gate .card{background:var(--paper);border-radius:10px;max-width:420px;width:100%;padding:26px 24px;box-shadow:0 20px 60px rgba(21,35,63,.3);text-align:center}
+.gate h2{margin:0 0 8px;font-size:1.3rem}
+.gate p{color:var(--muted);font-size:.92rem;line-height:1.55;margin:0 0 18px}
+.gate #gbtn{display:flex;justify-content:center;min-height:44px}
+.gate .cancel{margin-top:14px;border:0;background:none;color:var(--muted);font-weight:500}
+.outbox{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+.outbox textarea{min-height:260px;background:#f3f8f5;border-color:#bcd9c8}
 .coderow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.88rem}
 .coderow input{border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);padding:7px 10px;font:inherit;min-width:0;flex:1 1 200px}
 .revise{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
@@ -127,7 +139,11 @@ details p{margin:8px 0 0}
       <h1>Second <span>Read</span></h1>
       <p class="tag">Check your assignment before you hand it in. Paste your essay and see which sentences read as machine-written, and why.</p>
     </div>
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
+    <div class="acct" id="acct" hidden><img id="acctPic" alt="" referrerpolicy="no-referrer"><span id="acctName"></span><button id="signOut" type="button">Sign out</button></div>
+    <button class="primary" id="signInTop" type="button" hidden>Sign in with Google</button>
     <p class="notice"><strong>A score is a signal, not proof.</strong> AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Use this to revise, never as evidence against someone.</p>
+    </div>
   </header>
 
   <div class="grid">
@@ -139,6 +155,7 @@ details p{margin:8px 0 0}
       <textarea id="input" aria-labelledby="inLabel" placeholder="Paste your assignment here (at least 80 words works best)…"></textarea>
       <div class="actions">
         <button class="primary" id="analyze">Analyze with AI</button>
+        <button id="fullBtn">Humanize full text</button>
         <button id="plagBtn">Check plagiarism</button>
         <button id="quick">Quick check (offline)</button>
         <label class="file">Upload Word, PDF or text<input type="file" id="file" accept=".docx,.pdf,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,text/plain,text/markdown"></label>
@@ -147,6 +164,16 @@ details p{margin:8px 0 0}
       </div>
       <div class="status" id="status" role="status"></div>
       <div class="bar" id="busy" hidden><i></i></div>
+      <div class="outbox" id="outBox" hidden>
+        <div class="row"><span class="label" id="outLabel">Humanized text</span><span class="meta" id="outCount"></span></div>
+        <textarea id="output" aria-labelledby="outLabel"></textarea>
+        <p class="hint" style="margin:8px 0 0">Read it through and make it yours. Fill in any <mark class="ph">[bracketed]</mark> parts with your own examples. Your original stays in the box above.</p>
+        <div class="actions">
+          <button class="primary" id="outCopy">Copy</button>
+          <button id="outWord">Download Word</button>
+          <button id="outUse">Check this version</button>
+        </div>
+      </div>
       <div class="coderow" id="codeRow" hidden><label for="code">Access code</label><input id="code" type="password" autocomplete="off" placeholder="Ask your instructor or site owner"></div>
 
       <div style="margin-top:22px">
@@ -220,21 +247,30 @@ details p{margin:8px 0 0}
 
   <section class="about" aria-labelledby="aboutH">
     <h2 id="aboutH">A free AI detector and plagiarism checker for students</h2>
-    <p>Second Read helps university and college students check an assignment before they submit it. Paste your essay or upload a Word (.docx) or PDF file, and Second Read highlights the sentences that read as AI-written, explains why, and suggests a more natural rewrite. It can also check your text for plagiarism by comparing your most distinctive sentences with published books and websites. It is free, there is no sign-up, and your text is not stored.</p>
+    <p>Second Read helps university and college students check an assignment before they submit it. Paste your essay or upload a Word (.docx) or PDF file, and Second Read highlights the sentences that read as AI-written, explains why, and suggests a more natural rewrite. It can also check your text for plagiarism by comparing your most distinctive sentences with published books and websites. It is free: you just sign in with Google, and your text is not stored.</p>
     <div class="about-grid">
       <div><h3>1. Check for AI writing</h3><p>Each sentence gets a likelihood score. Flagged lines are highlighted so you can see exactly what sounds machine-written, such as stock phrases, flat rhythm, or vague claims.</p></div>
       <div><h3>2. Check for plagiarism</h3><p>Second Read searches the web and book sources like Google Books, Project Gutenberg and the Internet Archive for sentences that match yours, and links to each source it finds.</p></div>
-      <div><h3>3. Revise and download</h3><p>Humanize flagged lines with one click, then download a report with your scores, flagged sentences and sources to keep for your own records.</p></div>
+      <div><h3>3. Revise and download</h3><p>Humanize just the flagged lines, or rewrite your full text into a second box you can copy or download as Word. You can also download a report with your scores, flagged sentences and sources to keep for your own records.</p></div>
     </div>
     <h2>Frequently asked questions</h2>
-    <details><summary>Is Second Read free?</summary><p>Yes. Second Read is completely free for everyone, with no account, no payment and no word-count paywall.</p></details>
+    <details><summary>Is Second Read free?</summary><p>Yes. Second Read is completely free for everyone. You sign in with your Google account, but there is no payment, no subscription and no word-count paywall.</p></details>
     <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Scores are a signal, not proof. Formal academic writing and writing by non-native English speakers are flagged more often, so use the results to revise your work, never as evidence against someone.</p></details>
     <details><summary>Can it check a Word document or PDF?</summary><p>Yes. Click upload and choose a .docx, .pdf or .txt file. The text is read in your browser and placed in the box for checking.</p></details>
     <details><summary>Does the plagiarism checker look at books?</summary><p>Yes. Along with websites, it searches book sources such as Google Books, Project Gutenberg and the Internet Archive, and marks each match as a book or a website.</p></details>
+    <details><summary>Why do I need to sign in?</summary><p>Signing in with Google keeps the checker fair and free by limiting how many checks one person can run per minute. We only see your name and email address.</p></details>
     <details><summary>Is my essay saved or shared?</summary><p>No. Your text is only used to produce your result and is not stored by this site.</p></details>
   </section>
 </div>
 <div id="tip" hidden></div>
+<div class="gate" id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gateH">
+  <div class="card">
+    <h2 id="gateH">Sign in to use Second Read</h2>
+    <p>It's still free. Signing in with Google keeps the checker fair for every student. We only see your name and email, and we never post anything or read your mail.</p>
+    <div id="gbtn"></div>
+    <button class="cancel" id="gateCancel" type="button">Not now</button>
+  </div>
+</div>
 
 <script>
 const EXAMPLE = `Climate change is one of the most pressing issues of our time, and it is important to note that its effects are multifaceted. Moreover, rising global temperatures play a crucial role in shaping ecosystems, economies, and communities across the world. In today's rapidly evolving landscape, governments must navigate complex trade-offs to foster sustainable development.
@@ -441,7 +477,7 @@ function quickCheck(note){
 }
 
 function setStatus(msg, err){ const s=$("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
-function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; $("analyze").disabled = on; $("quick").disabled = on; $("plagBtn").disabled = on; }
+function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; $("analyze").disabled = on; $("quick").disabled = on; $("plagBtn").disabled = on; $("fullBtn").disabled = on; }
 
 const ERR = {
   rate_limited:"Too many checks in a short time. Wait a minute, then try again.",
@@ -452,6 +488,7 @@ const ERR = {
   refused:"The AI couldn't analyze this text. Showing the quick check instead.",
   search_disabled:"The plagiarism check isn't switched on yet. The site owner needs to enable web search in the Anthropic Console.",
   invalid_json:"The AI's answer came back in an unexpected format. Try again.",
+  need_login:"Please sign in with Google to continue. It's free.",
 };
 
 async function analyze(){
@@ -482,13 +519,16 @@ $("code").addEventListener("change", () => { try { localStorage.setItem("sr_code
 async function api(path, body, signal){
   let res;
   try {
-    res = await fetch(path, {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({...body, code: $("code").value.trim()}), signal});
+    const headers = {"content-type":"application/json"};
+    if (auth.token) headers.authorization = "Bearer " + auth.token;
+    res = await fetch(path, {method:"POST", headers, body: JSON.stringify({...body, code: $("code").value.trim()}), signal});
   } catch (e) {
     throw {code: e && e.name === "AbortError" ? "cancelled" : "upstream_error"};
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (data.code === "need_code" || data.code === "bad_code") $("codeRow").hidden = false;
+    if (data.code === "need_login") { setToken(null); openGate(); }
     throw {code: data.code || "upstream_error"};
   }
   return data;
@@ -663,6 +703,104 @@ $("report").addEventListener("click", e => { const s = e.target.closest(".s"); i
 updateCount();
 $("report").innerHTML = '<p style="color:var(--muted);font:15px/1.6 var(--body)">Paste your assignment above or upload a Word, PDF or text file, then choose a check. Your sentences will appear here, highlighted.</p>';
 
+
+/* ---------- Humanize the full text into a second box ---------- */
+async function humanizeFull(){
+  const text = input.value.trim();
+  if (words(text).length < 20){ setStatus("Paste at least a few sentences first.", true); return; }
+  ctl = new AbortController();
+  busy(true); setStatus("The AI is rewriting your full text… this can take up to a minute for long essays.");
+  try {
+    const d = await api("/api/humanize", { mode: "full", text }, ctl.signal);
+    $("output").value = d.text || "";
+    $("outBox").hidden = false;
+    updateOutCount();
+    $("outBox").scrollIntoView({ behavior: "smooth", block: "start" });
+    setStatus(d.cut ? "Rewrite ready, but it was very long and may be cut off at the end. Try a shorter section for the rest." : "Your humanized text is ready in the box below.");
+  } catch (e) {
+    if (e && e.code === "cancelled") setStatus("Stopped.");
+    else setStatus(ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment.", true);
+  } finally { busy(false); }
+}
+function updateOutCount(){ const n = words($("output").value).length; $("outCount").textContent = `${n} word${n===1?"":"s"}`; }
+$("output").addEventListener("input", updateOutCount);
+$("fullBtn").onclick = humanizeFull;
+$("outCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("output").value); setStatus("Humanized text copied."); }
+  catch { $("output").focus(); $("output").select(); setStatus("Copy was blocked here, so the text is selected. Press Ctrl+C / Cmd+C."); }
+};
+$("outUse").onclick = () => { input.value = $("output").value; updateCount(); $("inLabel").textContent = "Your text · humanized"; input.scrollIntoView({behavior:"smooth", block:"center"}); setStatus("The humanized version is in the main box. Tap Analyze with AI to check it."); };
+function xmlEsc(t){ return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+$("outWord").onclick = async () => {
+  try {
+    if (!window.JSZip) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+    const paras = $("output").value.replace(/\r\n/g, "\n").split(/\n/);
+    const body = paras.map(p => p.trim() ? `<w:p><w:r><w:t xml:space="preserve">${xmlEsc(p)}</w:t></w:r></w:p>` : `<w:p/>`).join("");
+    const zip = new JSZip();
+    zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    zip.file("word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`);
+    const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "humanized-text.docx"; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    setStatus("Downloaded humanized-text.docx.");
+  } catch { setStatus("Couldn't make the Word file. Use Copy instead.", true); }
+};
+
+/* ---------- Google sign-in ---------- */
+const auth = { clientId: null, token: null, user: null, pending: null, ready: false };
+function decodeJwt(t){ try { const p = t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"); return JSON.parse(decodeURIComponent(escape(atob(p)))); } catch { return null; } }
+function setToken(t){
+  const u = t ? decodeJwt(t) : null;
+  if (t && u && u.exp * 1000 > Date.now() + 30000){ auth.token = t; auth.user = u; try { localStorage.setItem("sr_tok", t); } catch {} }
+  else { auth.token = null; auth.user = null; try { localStorage.removeItem("sr_tok"); } catch {} }
+  renderAcct();
+}
+function signedIn(){ return !!(auth.token && auth.user && auth.user.exp * 1000 > Date.now() + 30000); }
+function renderAcct(){
+  const need = !!auth.clientId;
+  $("acct").hidden = !(need && signedIn());
+  $("signInTop").hidden = !(need && !signedIn());
+  if (auth.user){ $("acctName").textContent = auth.user.given_name || auth.user.name || auth.user.email || ""; if (auth.user.picture) $("acctPic").src = auth.user.picture; $("acctPic").hidden = !auth.user.picture; }
+}
+function openGate(){
+  if (!auth.clientId) return;
+  $("gate").hidden = false;
+  if (auth.ready && !$("gbtn").childElementCount) google.accounts.id.renderButton($("gbtn"), { theme: "filled_blue", size: "large", text: "continue_with", shape: "pill", width: 280 });
+}
+function closeGate(){ $("gate").hidden = true; }
+$("gateCancel").onclick = () => { auth.pending = null; closeGate(); };
+$("signInTop").onclick = () => openGate();
+$("signOut").onclick = () => { setToken(null); try { google.accounts.id.disableAutoSelect(); } catch {} setStatus("Signed out."); };
+function onCredential(resp){
+  setToken(resp && resp.credential);
+  if (!signedIn()) { setStatus("Sign-in didn't finish. Please try again.", true); return; }
+  closeGate();
+  setStatus(`Signed in as ${auth.user.name || auth.user.email}.`);
+  const next = auth.pending; auth.pending = null;
+  if (next) next();
+}
+function requireLogin(fn){
+  return function(...args){
+    if (!auth.clientId || signedIn()) return fn.apply(this, args);
+    auth.pending = () => fn.apply(this, args);
+    openGate();
+  };
+}
+["analyze", "quick", "rewrite", "plagBtn", "fullBtn"].forEach(id => { const f = $(id).onclick; if (f) $(id).onclick = requireLogin(f); });
+(async function initAuth(){
+  try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
+  if (!auth.clientId) return;
+  try { setToken(localStorage.getItem("sr_tok")); } catch {}
+  renderAcct();
+  try {
+    await loadScript("https://accounts.google.com/gsi/client");
+    google.accounts.id.initialize({ client_id: auth.clientId, callback: onCredential, auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true });
+    auth.ready = true;
+    if (!$("gate").hidden) openGate();
+    if (!signedIn()) google.accounts.id.prompt();
+  } catch { setStatus("Google sign-in couldn't load. Check your connection and refresh the page.", true); }
+})();
 </script>
 
 </body>
