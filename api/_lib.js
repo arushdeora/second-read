@@ -12,7 +12,30 @@ function rateLimited(ip, perMinute = Number(process.env.RATE_LIMIT_PER_MINUTE ||
   return list.length > perMinute;
 }
 
-export function guard(req, res) {
+// Google sign-in: when GOOGLE_CLIENT_ID is set, every API call must carry a valid Google ID token.
+const tokenCache = new Map();
+async function googleUser(req) {
+  const clientId = String(process.env.GOOGLE_CLIENT_ID || "").trim();
+  if (!clientId) return { anonymous: true };
+  const auth = String(req.headers["authorization"] || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token) return null;
+  const hit = tokenCache.get(token);
+  if (hit && hit.exp * 1000 > Date.now()) return hit;
+  try {
+    const r = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(token));
+    if (!r.ok) return null;
+    const t = await r.json();
+    const okIss = t.iss === "accounts.google.com" || t.iss === "https://accounts.google.com";
+    if (t.aud !== clientId || !okIss || Number(t.exp) * 1000 < Date.now()) return null;
+    const user = { sub: t.sub, email: t.email, exp: Number(t.exp) };
+    if (tokenCache.size > 2000) tokenCache.clear();
+    tokenCache.set(token, user);
+    return user;
+  } catch (e) { console.error("tokeninfo failed", e); return null; }
+}
+
+export async function guard(req, res) {
   if (req.method !== "POST") { res.status(405).json({ code: "method_not_allowed" }); return null; }
   if (!process.env.ANTHROPIC_API_KEY) { res.status(500).json({ code: "not_configured" }); return null; }
   const body = typeof req.body === "string" ? safeParse(req.body) : (req.body || {});
@@ -21,9 +44,11 @@ export function guard(req, res) {
     if (!body.code) { res.status(401).json({ code: "need_code" }); return null; }
     if (body.code !== required) { res.status(403).json({ code: "bad_code" }); return null; }
   }
+  const user = await googleUser(req);
+  if (!user) { res.status(401).json({ code: "need_login" }); return null; }
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
-  if (rateLimited(ip)) { res.status(429).json({ code: "rate_limited" }); return null; }
-  return body;
+  if (rateLimited(user.sub || ip)) { res.status(429).json({ code: "rate_limited" }); return null; }
+  return body || {};
 }
 
 export function cleanSentences(list, max = 400) {
@@ -73,6 +98,21 @@ export async function askClaude(prompt, maxTokens) {
   const json = extractJson(text);
   if (json === null) throw { status: 502, code: "invalid_json" };
   return json;
+}
+
+// Plain-text reply (for long rewrites, where asking for JSON would be fragile).
+export async function askClaudeText(prompt, maxTokens) {
+  const key = apiKey();
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 429) throw { status: 429, code: "rate_limited" };
+  if (!r.ok) { console.error("Anthropic API error", r.status, data); throw { status: 502, code: "upstream_error" }; }
+  if (data.stop_reason === "refusal") throw { status: 422, code: "refused" };
+  return { text: (data.content || []).filter(c => c.type === "text").map(c => c.text).join("").trim(), cut: data.stop_reason === "max_tokens" };
 }
 
 export function fail(res, e) {

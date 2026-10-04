@@ -1,7 +1,7 @@
 import { guard, cleanSentences, tooLong, askClaude, fail } from "./_lib.js";
 
 export default async function handler(req, res) {
-  const body = guard(req, res); if (!body) return;
+  const body = await guard(req, res); if (!body) return;
   const sentences = cleanSentences(body.sentences);
   if (!sentences.length) return res.status(400).json({ code: "empty" });
   if (tooLong(sentences)) return res.status(413).json({ code: "too_long" });
