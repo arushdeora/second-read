@@ -6,49 +6,50 @@
 <meta name="description" content="Check your assignment for AI-like writing, see which sentences are flagged, and revise them.">
 <title>Second Read</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: a two-column marking desk. Left = the submission, highlighted sentence by sentence; right = the verdict and the evidence. Stacks on phones. */
+/* Layout: a marking desk. Left = the submission, highlighted sentence by sentence; right = the verdict and the evidence. Stacks on phones. Clean academic look: paper white, navy ink, examiner green. */
 :root{
-  --bg:#eef1f5; --paper:#ffffff; --ink:#18212e; --muted:#5b6778; --line:#d5dbe4;
-  --accent:#2747a8; --accent-ink:#ffffff;
-  --hl-high:rgba(232,89,60,.26); --hl-mid:rgba(240,180,40,.30); --hl-low:transparent;
-  --good:#1f7a4d; --warn:#b07400; --bad:#c2412a;
-  --display:"Newsreader",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --bg:#f4f6f9; --paper:#ffffff; --ink:#15233f; --muted:#5b6579; --line:#d8dee8;
+  --accent:#1d3a6e; --accent-ink:#ffffff;
+  --hl-high:rgba(200,64,58,.18); --hl-mid:rgba(226,163,32,.26); --hl-low:transparent;
+  --good:#2b7a57; --warn:#a46a00; --bad:#b3362f;
+  --display:"Source Serif 4",Georgia,serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#10151d; --paper:#18202b; --ink:#e6eaf0; --muted:#97a3b4; --line:#2b3542;
-  --accent:#8ea8ff; --accent-ink:#0d1220;
-  --hl-high:rgba(255,120,90,.30); --hl-mid:rgba(255,200,70,.24);
-  --good:#5cc994; --warn:#e8b54a; --bad:#ff8a6e; color-scheme:dark}}
+  --bg:#0e1524; --paper:#161f33; --ink:#e6ebf4; --muted:#9aa6bb; --line:#27324a;
+  --accent:#9db7ff; --accent-ink:#0e1524;
+  --hl-high:rgba(255,110,100,.26); --hl-mid:rgba(255,196,80,.22);
+  --good:#6fcf9f; --warn:#f0b955; --bad:#ff8a80; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#10151d; --paper:#18202b; --ink:#e6eaf0; --muted:#97a3b4; --line:#2b3542;
-  --accent:#8ea8ff; --accent-ink:#0d1220;
-  --hl-high:rgba(255,120,90,.30); --hl-mid:rgba(255,200,70,.24);
-  --good:#5cc994; --warn:#e8b54a; --bad:#ff8a6e; color-scheme:dark}
+  --bg:#0e1524; --paper:#161f33; --ink:#e6ebf4; --muted:#9aa6bb; --line:#27324a;
+  --accent:#9db7ff; --accent-ink:#0e1524;
+  --hl-high:rgba(255,110,100,.26); --hl-mid:rgba(255,196,80,.22);
+  --good:#6fcf9f; --warn:#f0b955; --bad:#ff8a80; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);padding:0 16px}
 .wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;display:flex;flex-direction:column;gap:22px}
-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
-h1{font:700 2.1rem/1.1 var(--display);margin:0;letter-spacing:-.01em}
-h1 span{color:var(--accent)}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--accent);padding-bottom:18px}
+h1{font:700 2.4rem/1.05 var(--display);margin:0;letter-spacing:-.01em;color:var(--accent)}
+h1 span{color:var(--good);font-style:italic}
 .tag{color:var(--muted);margin:4px 0 0;max-width:60ch}
-.notice{font-size:.85rem;color:var(--muted);border-left:3px solid var(--warn);padding:6px 12px;background:var(--paper);border-radius:0 6px 6px 0;max-width:60ch}
+.notice{font-size:.88rem;color:var(--muted);border-left:3px solid var(--good);padding:6px 12px;background:var(--paper);border-radius:0 6px 6px 0;max-width:60ch}
 .grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
 @media (max-width:860px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px;min-width:0;box-shadow:0 1px 2px rgba(21,35,63,.05)}
 .label{font:500 .72rem/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 textarea{width:100%;min-height:300px;resize:vertical;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:15px/1.65 var(--body);padding:14px;margin-top:10px}
 textarea:focus,button:focus-visible,.file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .meta{font:400 .8rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-button,.file{font:500 .9rem var(--body);border-radius:7px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+button,.file{font:600 .92rem var(--body);border-radius:4px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button:disabled{opacity:.55;cursor:default}
 .file input{position:absolute;width:1px;height:1px;opacity:0}
 .file{position:relative;display:inline-flex}
-#report{margin-top:6px;font:17px/1.75 var(--display)}
+#report{margin-top:6px;font:18px/1.8 var(--display)}
 #report p{margin:0 0 14px}
 .s{border-radius:3px;padding:1px 0;transition:background .2s;cursor:help}
 .s.high{background:var(--hl-high)} .s.mid{background:var(--hl-mid)}
@@ -108,6 +109,7 @@ details p{margin:8px 0 0}
 <div class="wrap">
   <header>
     <div>
+      <p class="label" style="margin:0 0 6px">AI writing check for university assignments</p>
       <h1>Second <span>Read</span></h1>
       <p class="tag">Check your assignment before you hand it in. Paste your essay and see which sentences read as machine-written, and why.</p>
     </div>
