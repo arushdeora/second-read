@@ -378,7 +378,7 @@ function resultText(host, title, base, text, note){
   if (note) wrap.append(el("p", "note", note));
   wrap.append(acts);
   host.append(wrap);
-  $("oMeta").textContent = `${words(text).length} words`;
+  $("oMeta").textContent = `${words(base).length} → ${words(text).length} words`;
   return wrap;
 }
 function needText(min = 3){ const t = input.value.replace(/\r\n/g, "\n"); if (words(t).length < min){ setStatus(min > 3 ? `Paste at least a few sentences (${min}+ words).` : "Type or paste some text first.", true); return null; } return t; }
