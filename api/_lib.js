@@ -115,6 +115,31 @@ export async function askClaudeText(prompt, maxTokens) {
   return { text: (data.content || []).filter(c => c.type === "text").map(c => c.text).join("").trim(), cut: data.stop_reason === "max_tokens" };
 }
 
+// Rewrite while keeping roughly the original length. Rewriters tend to quietly drop
+// sentences; if the result is too short (or too long), ask once more with the exact
+// numbers and keep whichever attempt is closest to the target.
+export const countWords = t => (String(t).match(/[A-Za-z0-9\u00C0-\u024F\u2019'-]+/g) || []).length;
+export async function rewriteKeepLength(prompt, original, { min = 0.92, max = 1.12, maxTokens } = {}) {
+  const n = countWords(original);
+  const lo = Math.round(n * min), hi = Math.round(n * max);
+  const rule = `\n\nLENGTH RULE: The original is ${n} words. Your rewrite MUST be between ${lo} and ${hi} words. Rewrite every sentence; do not drop sentences, ideas, examples, details or qualifiers. Change words and sentence structure instead of deleting them. Keep the same number of paragraphs and roughly the same number of sentences in each.`;
+  const tokens = maxTokens || Math.min(16000, Math.ceil(String(original).length / 2) + 1200);
+  const clean = t => t.replace(/^"""\s*|\s*"""$/g, "").trim();
+  let best = await askClaudeText(prompt + rule, tokens); best.text = clean(best.text);
+  let w = countWords(best.text);
+  if (n >= 40 && (w < lo || w > hi) && !best.cut) {
+    const fix = w < lo
+      ? `\n\nIMPORTANT: A previous attempt was only ${w} words, which removed too much. The result must be ${lo}-${hi} words. Go through the original sentence by sentence and rewrite EVERY one; keep all details.`
+      : `\n\nIMPORTANT: A previous attempt was ${w} words, which is too long. The result must be ${lo}-${hi} words. Do not add new content.`;
+    try {
+      const again = await askClaudeText(prompt + rule + fix, tokens); again.text = clean(again.text);
+      const w2 = countWords(again.text);
+      if (again.text && Math.abs(w2 - n) < Math.abs(w - n)) { best = again; w = w2; }
+    } catch (e) { /* keep the first attempt */ }
+  }
+  return { text: best.text, cut: best.cut, words: w, originalWords: n };
+}
+
 export function fail(res, e) {
   if (e && e.code) return res.status(e.status || 500).json({ code: e.code });
   console.error(e);

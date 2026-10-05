@@ -1,4 +1,4 @@
-import { guard, cleanSentences, tooLong, askClaude, askClaudeText, fail } from "./_lib.js";
+import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail } from "./_lib.js";
 
 // A full rewrite of a long essay can take a while.
 export const config = { maxDuration: 60 };
@@ -18,7 +18,7 @@ Rules:
 - Keep the same meaning, argument, structure and paragraph breaks (one blank line between paragraphs).
 - Keep every quotation, citation, reference, name, number and date exactly as written.
 - Do NOT invent facts, statistics, sources or personal experiences. Where a concrete detail from the student would help, insert a short bracketed placeholder like [add your own example].
-- Keep roughly the same length.
+- Keep the same length: rewrite and replace words, never delete sentences or details.
 Reply with ONLY the rewritten text: no title, no notes, no quotation marks around it.
 
 TEXT:
@@ -26,9 +26,9 @@ TEXT:
 ${text}
 """`;
     try {
-      const out = await askClaudeText(prompt, Math.min(16000, Math.ceil(text.length / 2.5) + 800));
+      const out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.1 });
       if (!out.text) return res.status(502).json({ code: "upstream_error" });
-      return res.status(200).json({ text: out.text.replace(/^"""\s*|\s*"""$/g, ""), cut: out.cut });
+      return res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
     } catch (e) { return fail(res, e); }
   }
 

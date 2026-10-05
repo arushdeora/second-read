@@ -1,4 +1,4 @@
-import { guard, askClaude, askClaudeText, fail } from "./_lib.js";
+import { guard, askClaude, askClaudeText, rewriteKeepLength, fail } from "./_lib.js";
 
 // Writing assistant: grammar & clarity review, rewrite modes, and citations.
 export const config = { maxDuration: 60 };
@@ -93,9 +93,11 @@ TEXT:
 """
 ${text}
 """`;
-  const out = await askClaudeText(prompt, Math.min(16000, Math.ceil(text.length / (style === "longer" ? 1.6 : 2.5)) + 800));
+  // Shorten/Expand change length on purpose; every other mode keeps the original length.
+  const range = style === "shorter" ? { min: 0.55, max: 0.8 } : style === "longer" ? { min: 1.2, max: 1.6 } : style === "simpler" ? { min: 0.85, max: 1.1 } : { min: 0.92, max: 1.12 };
+  const out = await rewriteKeepLength(prompt, text, { ...range, maxTokens: Math.min(16000, Math.ceil(text.length / (style === "longer" ? 1.4 : 2)) + 1200) });
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
-  res.status(200).json({ text: out.text.replace(/^"""\s*|\s*"""$/g, ""), cut: out.cut });
+  res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
 }
 
 // Rewrite the whole text so passages that match published sources are put into the
@@ -120,7 +122,7 @@ ${aiFlagged.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
 ` : ""}For all the other sentences: keep them close to the original, but fix any spelling, grammar and punctuation mistakes and make clumsy wording read naturally.
 
 Rules:
-- Keep the same meaning, argument, order and paragraph breaks.
+- Keep the same meaning, argument, order, length and paragraph breaks. Replace and restructure words; never delete sentences or details.
 - Keep direct quotations that are in quotation marks, and keep existing citations, names, numbers and dates exactly.
 - Do not invent facts, statistics or sources.
 - Write like a capable university student: clear, varied sentences in natural academic English. Never simplify the vocabulary or make it sound basic.
@@ -130,9 +132,10 @@ TEXT:
 """
 ${text}
 """`;
-  const out = await askClaudeText(prompt, Math.min(16000, Math.ceil(text.length / 2.2) + 1000));
+  // Citation reminders add a few words, so allow a little extra.
+  const out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.15 });
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
-  res.status(200).json({ text: out.text.replace(/^"""\s*|\s*"""$/g, ""), cut: out.cut });
+  res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
 }
 
 // ---------- Citations ----------
