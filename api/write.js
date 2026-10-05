@@ -5,6 +5,8 @@ export const config = { maxDuration: 60 };
 
 const MAX = 20000;
 const STYLES = {
+  standard: "reworded in fresh, natural language with different sentence structure and vocabulary, keeping the same meaning and roughly the same length",
+  creative: "reworded more freely and creatively, with vivid but clear wording and new sentence structures, keeping the same meaning",
   formal: "more formal and professional, suitable for a university assignment",
   simpler: "simpler and easier to read, using plain everyday words and shorter sentences",
   shorter: "noticeably shorter and more concise (about 30-40% fewer words) while keeping every key point",
