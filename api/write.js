@@ -113,7 +113,7 @@ ${flagged.length ? `These sentences closely match published sources and must be 
 FLAGGED SENTENCES:
 ${flagged.map((f, i) => `${i + 1}. "${f.text}"${f.source ? ` (source: ${f.source})` : ""}`).join("\n")}
 
-` : ""}${aiFlagged.length ? `These sentences read as AI-generated. Rewrite them so they sound like a real student wrote them: plain everyday words, varied sentence length (mix short and longer sentences), a direct personal point of view where it fits, no stock transitions (moreover, furthermore, additionally, in conclusion, it is important to note) and no buzzwords (delve, pivotal, crucial, multifaceted, landscape, tapestry, foster, leverage, navigate, realm, showcase, seamless). Keep the meaning. Where a concrete detail from the student would make it stronger, add a short placeholder like [add your own example] instead of inventing one. Do NOT add any [cite: ...] reminder to these sentences.
+` : ""}${aiFlagged.length ? `These sentences read as AI-generated. Rewrite them so they sound like a capable university student wrote them: natural, confident university-level English: keep precise academic vocabulary, subject terms and the same level of sophistication as the original (do NOT simplify, dumb down, or make it sound childish or overly casual), varied sentence length (mix short and longer sentences), a direct personal point of view where it fits, no stock transitions (moreover, furthermore, additionally, in conclusion, it is important to note) and no buzzwords (delve, pivotal, crucial, multifaceted, landscape, tapestry, foster, leverage, navigate, realm, showcase, seamless). Keep the meaning. Where a concrete detail from the student would make it stronger, add a short placeholder like [add your own example] instead of inventing one. Do NOT add any [cite: ...] reminder to these sentences.
 AI-SOUNDING SENTENCES:
 ${aiFlagged.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
 
@@ -123,7 +123,7 @@ Rules:
 - Keep the same meaning, argument, order and paragraph breaks.
 - Keep direct quotations that are in quotation marks, and keep existing citations, names, numbers and dates exactly.
 - Do not invent facts, statistics or sources.
-- Write like a real student: clear, plain, varied sentences.
+- Write like a capable university student: clear, varied sentences in natural academic English. Never simplify the vocabulary or make it sound basic.
 Reply with ONLY the rewritten text, no title or notes.
 
 TEXT:

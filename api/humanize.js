@@ -3,7 +3,7 @@ import { guard, cleanSentences, tooLong, askClaude, askClaudeText, fail } from "
 // A full rewrite of a long essay can take a while.
 export const config = { maxDuration: 60 };
 
-const STYLE = `plain everyday words, varied sentence length, no stock transitions (moreover, furthermore, in conclusion, it is important to note), no buzzwords (pivotal, multifaceted, leverage, foster, landscape, tapestry, delve), and a direct point of view`;
+const STYLE = `natural, confident university-level English: keep precise academic vocabulary, subject terms and the same level of sophistication as the original (do NOT simplify, dumb down, or make it sound childish or overly casual), varied sentence length (mix shorter and longer, more complex sentences), no stock transitions (moreover, furthermore, in conclusion, it is important to note), no buzzwords (pivotal, multifaceted, leverage, foster, landscape, tapestry, delve), and a direct point of view`;
 
 export default async function handler(req, res) {
   const body = await guard(req, res); if (!body) return;
