@@ -77,7 +77,7 @@ function apiKey() {
   return String(process.env.ANTHROPIC_API_KEY || "").trim().replace(/^["']|["']$/g, "").trim();
 }
 
-export async function askClaude(prompt, maxTokens) {
+export async function askClaude(prompt, maxTokens, opts = {}) {
   const key = apiKey();
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -86,7 +86,7 @@ export async function askClaude(prompt, maxTokens) {
       "x-api-key": key,
       "anthropic-version": "2023-06-01",
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model: opts.model || MODEL, max_tokens: maxTokens, ...(opts.temperature != null ? { temperature: opts.temperature } : {}), messages: [{ role: "user", content: prompt }] }),
   });
   const data = await r.json().catch(() => ({}));
   if (r.status === 429) throw { status: 429, code: "rate_limited" };
