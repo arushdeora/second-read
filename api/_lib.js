@@ -122,9 +122,16 @@ export const countWords = t => (String(t).match(/[A-Za-z0-9\u00C0-\u024F\u2019'-
 export async function rewriteKeepLength(prompt, original, { min = 0.92, max = 1.12, maxTokens } = {}) {
   const n = countWords(original);
   const lo = Math.round(n * min), hi = Math.round(n * max);
-  const rule = `\n\nLENGTH RULE: The original is ${n} words. Your rewrite MUST be between ${lo} and ${hi} words. Rewrite every sentence; do not drop sentences, ideas, examples, details or qualifiers. Change words and sentence structure instead of deleting them. Keep the same number of paragraphs and roughly the same number of sentences in each.`;
+  const rule = `\n\nLENGTH RULE: The original is ${n} words. Your rewrite MUST be between ${lo} and ${hi} words. Rewrite every sentence; do not drop sentences, ideas, examples, details or qualifiers. Change words and sentence structure instead of deleting them. Keep the same number of paragraphs and roughly the same number of sentences in each.\n\nPUNCTUATION RULE: When you continue or join a sentence, use connecting WORDS (and, but, because, so, while, which, although, as, since) or start a new sentence. Do NOT use dashes (— or – or a hyphen used as a dash), semicolons, or colons to join clauses. Use only full stops, commas, question marks, quotation marks and normal hyphens inside words.`;
   const tokens = maxTokens || Math.min(16000, Math.ceil(String(original).length / 2) + 1200);
-  const clean = t => t.replace(/^"""\s*|\s*"""$/g, "").trim();
+  // Safety net: turn any leftover dash or semicolon joins into a comma or a full stop.
+  const unjoin = t => t
+    .replace(/\s*[\u2014\u2013]\s*/g, ", ")                 // em/en dashes -> comma
+    .replace(/(\w) - (\w)/g, "$1, $2")                        // spaced hyphen used as a dash
+    .replace(/;\s+([a-z])/g, ", and $1")                       // semicolon before lowercase -> ", and"
+    .replace(/;\s+([A-Z])/g, ". $1")                           // semicolon before capital -> new sentence
+    .replace(/,\s*,/g, ",").replace(/, ([.!?])/g, "$1");
+  const clean = t => unjoin(t.replace(/^"""\s*|\s*"""$/g, "")).trim();
   let best = await askClaudeText(prompt + rule, tokens); best.text = clean(best.text);
   let w = countWords(best.text);
   if (n >= 40 && (w < lo || w > hi) && !best.cut) {
