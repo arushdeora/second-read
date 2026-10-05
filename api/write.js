@@ -107,7 +107,7 @@ async function original(body, res) {
   const aiFlagged = (Array.isArray(body.aiFlagged) ? body.aiFlagged : []).slice(0, 80).map(t => String(t || "").slice(0, 1000)).filter(Boolean);
   const prompt = `A university student wants their assignment to be written in their own words. Rewrite the WHOLE text below.
 
-${flagged.length ? `These sentences closely match published sources and must be completely re-expressed in fresh wording: change the sentence structure and the vocabulary, not just a few words, while keeping the same meaning. Right after each one, add a citation reminder in square brackets naming the source, like [cite: ${flagged[0].source || "source"}], because the idea still came from that source.
+${flagged.length ? `These sentences closely match published sources and must be completely re-expressed in fresh wording: change the sentence structure and the vocabulary, not just a few words, while keeping the same meaning. Put a citation reminder in square brackets at the END of each reworded sentence, after its last word and before the full stop, naming the source, like "...wants to get married [cite: ${flagged[0].source || "source"}].", because the idea still came from that source. Never put the reminder before the sentence or on a different sentence.
 FLAGGED SENTENCES:
 ${flagged.map((f, i) => `${i + 1}. "${f.text}"${f.source ? ` (source: ${f.source})` : ""}`).join("\n")}
 
