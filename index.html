@@ -3,630 +3,378 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Second Read is a free AI detector and plagiarism checker for university students. Paste or upload your essay (Word or PDF), see which sentences sound AI-written, check for copied text from books and websites, and rewrite flagged lines or the full text. Free with Google sign-in.">
-<title>Second Read – Free AI Detector &amp; Plagiarism Checker for Students</title>
+<meta name="description" content="Second Read is a free plagiarism and grammar checker for students. Paste or upload your essay, see copied sentences and grammar mistakes highlighted, and rewrite it in your own words with one click.">
+<title>Second Read – Free Plagiarism &amp; Grammar Checker for Students</title>
 <link rel="canonical" href="https://second-read-three.vercel.app/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://second-read-three.vercel.app/">
-<meta property="og:title" content="Second Read – Free AI Detector &amp; Plagiarism Checker for Students">
-<meta property="og:description" content="Check your assignment for AI-written sentences and copied text from books and websites. Free with Google sign-in.">
+<meta property="og:title" content="Second Read – Free Plagiarism &amp; Grammar Checker for Students">
+<meta property="og:description" content="Check your assignment for plagiarism and grammar mistakes, then rewrite it in your own words. Free.">
 <meta name="twitter:card" content="summary">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebApplication","name":"Second Read","url":"https://second-read-three.vercel.app/","applicationCategory":"EducationalApplication","operatingSystem":"Any","description":"Free AI writing detector and plagiarism checker for university students, with sentence highlights, rewrite suggestions and Word/PDF upload.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"audience":{"@type":"EducationalAudience","educationalRole":"student"}}
+{"@context":"https://schema.org","@type":"WebApplication","name":"Second Read","url":"https://second-read-three.vercel.app/","applicationCategory":"EducationalApplication","operatingSystem":"Any","description":"Free plagiarism and grammar checker for students that highlights copied sentences and mistakes and rewrites the text in the student's own words.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"audience":{"@type":"EducationalAudience","educationalRole":"student"}}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: a marking desk. Left = the submission, highlighted sentence by sentence; right = the verdict and the evidence. Stacks on phones. Clean academic look: paper white, navy ink, examiner green. */
+/* One simple flow: paste → Check → see problems highlighted → one-click rewrite. */
 :root{
-  --bg:#f4f6f9; --paper:#ffffff; --ink:#15233f; --muted:#5b6579; --line:#d8dee8;
-  --accent:#1d3a6e; --accent-ink:#ffffff;
-  --hl-high:rgba(200,64,58,.18); --hl-mid:rgba(226,163,32,.26); --hl-low:transparent;
-  --good:#2b7a57; --warn:#a46a00; --bad:#b3362f;
+  --bg:#f4f6f9; --paper:#fff; --ink:#15233f; --muted:#5b6579; --line:#d8dee8;
+  --accent:#1d3a6e; --good:#2b7a57; --bad:#b3362f; --plag:#6b4fbb;
+  --display:"Source Serif 4",Georgia,serif; --body:"Source Sans 3",system-ui,sans-serif;
   color-scheme:light;
-  --display:"Source Serif 4",Georgia,serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--body);padding:0 16px}
-.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;display:flex;flex-direction:column;gap:22px}
-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--accent);padding-bottom:18px}
-h1{font:700 2.4rem/1.05 var(--display);margin:0;letter-spacing:-.01em;color:var(--accent)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font:700 2rem/1.1 var(--display);margin:0}
 h1 span{color:var(--good);font-style:italic}
-.tag{color:var(--muted);margin:4px 0 0;max-width:60ch}
-.notice{font-size:.88rem;color:var(--muted);border-left:3px solid var(--good);padding:6px 12px;background:var(--paper);border-radius:0 6px 6px 0;max-width:60ch}
-.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
-@media (max-width:860px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:20px;min-width:0;box-shadow:0 1px 2px rgba(21,35,63,.05)}
-.label{font:500 .72rem/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-textarea{width:100%;min-height:300px;resize:vertical;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:15px/1.65 var(--body);padding:14px;margin-top:10px}
-textarea:focus,button:focus-visible,.file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
-.meta{font:400 .8rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
-.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-button,.file{font:600 .92rem var(--body);border-radius:4px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
-button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-button:disabled{opacity:.55;cursor:default}
-.file input{position:absolute;width:1px;height:1px;opacity:0}
-.file{position:relative;display:inline-flex}
-#report{margin-top:6px;font:18px/1.8 var(--display)}
-#report p{margin:0 0 14px}
-.s{border-radius:3px;padding:1px 0;transition:background .2s;cursor:help}
-.s.high{background:var(--hl-high)} .s.mid{background:var(--hl-mid)}
-.s:hover{outline:1px solid var(--muted)}
-.s.pl{text-decoration:underline wavy #6b4fbb;text-decoration-thickness:1.5px;text-underline-offset:5px}
-.pmatch{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding:10px 0}
-.pmatch:first-child{border-top:0}
-.pmatch q{font:15px/1.5 var(--display)}
-.pmatch a{color:var(--accent);font-weight:600;word-break:break-word}
-.pbig{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
-.pbig b{font:700 2rem var(--display);font-variant-numeric:tabular-nums}
-.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted);margin-top:4px}
-.sw{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle;border:1px solid var(--line)}
-.side{display:flex;flex-direction:column;gap:18px}
-.gauge{display:flex;gap:18px;align-items:center}
-.ring{--p:0;--c:var(--good);width:120px;height:120px;border-radius:50%;flex:none;display:grid;place-items:center;
-  background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
-.ring>div{width:94px;height:94px;border-radius:50%;background:var(--paper);display:grid;place-items:center;text-align:center}
-.ring b{font:700 1.9rem/1 var(--display);font-variant-numeric:tabular-nums}
-.ring small{font:400 .66rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.verdict{font:600 1.15rem/1.3 var(--display);margin:0}
-.pill{display:inline-block;font:500 .72rem var(--mono);padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-top:6px}
-.summary{margin:0;color:var(--ink)}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-.stat b{display:block;font:500 1.2rem var(--mono);font-variant-numeric:tabular-nums}
-.stat span{font-size:.78rem;color:var(--muted)}
-ul.sig{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
-ul.sig li{display:flex;gap:10px;align-items:baseline;font-size:.9rem}
-.dot{width:8px;height:8px;border-radius:50%;flex:none;transform:translateY(-1px)}
-.status{font-size:.88rem;color:var(--muted);min-height:1.4em}
-.status.err{color:var(--bad)}
-.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.2s infinite ease-in-out}
-@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
-@media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}
-#tip{position:fixed;z-index:10;max-width:280px;background:var(--ink);color:var(--paper);font:13px/1.45 var(--body);padding:8px 10px;border-radius:6px;pointer-events:none}
-.acct{display:flex;align-items:center;gap:10px;font-size:.88rem;color:var(--muted)}
+.tag{color:var(--muted);margin:6px 0 0}
+.acct{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
 .acct img{width:28px;height:28px;border-radius:50%}
-.acct button{padding:5px 10px;font-size:.82rem}
-.signin-hint{font-size:.88rem;color:var(--muted)}
+button,.file{font:600 .95rem var(--body);border-radius:8px;padding:10px 18px;cursor:pointer;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.big{font-size:1.05rem;padding:13px 26px}
+button:disabled{opacity:.55;cursor:default}
+.file input{display:none}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:20px;box-shadow:0 1px 2px rgba(21,35,63,.05)}
+textarea{width:100%;min-height:260px;resize:vertical;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:16px/1.65 var(--body);padding:14px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px}
+.bar .left{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.meta{font-size:.85rem;color:var(--muted)}
+.status{font-size:.92rem;color:var(--muted);min-height:1.5em;margin-top:10px}
+.status.err{color:var(--bad)}
+.progress{height:4px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px}
+.progress i{display:block;height:100%;width:40%;background:var(--accent);animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
+.sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sum div{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg)}
+.sum b{display:block;font:700 1.8rem/1.1 var(--display)}
+.sum span{font-size:.88rem;color:var(--muted)}
+.sum .ok b{color:var(--good)} .sum .warn b{color:var(--bad)}
+h2{font:700 1.15rem var(--display);margin:0 0 6px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin:14px 0 6px}
+.legend i{display:inline-block;width:22px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.view{font:16px/1.85 var(--body);white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;max-height:460px;overflow:auto}
+.view .pl{background:rgba(107,79,187,.16);border-radius:3px}
+.view .gm{border-bottom:2px solid var(--bad);cursor:help}
+.next{margin-top:16px;padding:14px;border-radius:10px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.next.plag{background:rgba(107,79,187,.08);border:1px solid rgba(107,79,187,.3)}
+.next.gram{background:rgba(179,54,47,.06);border:1px solid rgba(179,54,47,.25)}
+.next.done{background:rgba(43,122,87,.08);border:1px solid rgba(43,122,87,.3);color:var(--good);font-weight:600}
+.next p{margin:0;max-width:52ch}
+details.list{margin-top:14px}
+details.list summary{cursor:pointer;font-weight:600}
+.items{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px}
+.items li{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:6px;padding:8px 12px;font-size:.93rem}
+.items li.p{border-left-color:var(--plag)}
+.items del{color:var(--bad)} .items ins{color:var(--good);text-decoration:none;font-weight:600}
+.items small{display:block;color:var(--muted)}
+.items a{color:var(--plag)}
+.out textarea{background:#f3f8f5;border-color:#bcd9c8;min-height:220px}
+.diff{font:16px/1.85 var(--body);white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;max-height:420px;overflow:auto}
+mark.add{background:rgba(43,122,87,.2);color:var(--ink);border-radius:3px;padding:0 1px}
+.diff del{color:var(--bad);opacity:.7;margin-right:4px}
+mark.cite{background:rgba(226,163,32,.3);color:var(--ink);border-radius:3px;padding:0 2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.note{font-size:.88rem;color:var(--muted);margin:10px 0 0}
 .gate{position:fixed;inset:0;background:rgba(21,35,63,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
-.gate .card{background:var(--paper);border-radius:10px;max-width:420px;width:100%;padding:26px 24px;box-shadow:0 20px 60px rgba(21,35,63,.3);text-align:center}
-.gate h2{margin:0 0 8px;font-size:1.3rem}
-.gate p{color:var(--muted);font-size:.92rem;line-height:1.55;margin:0 0 18px}
-.gate #gbtn{display:flex;justify-content:center;min-height:44px}
-.gate .cancel{margin-top:14px;border:0;background:none;color:var(--muted);font-weight:500}
-.tools{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
-.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 12px}
-.tabs button{border-radius:99px;padding:7px 14px;font-size:.88rem}
-.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips button{padding:6px 12px;border-radius:99px;font-size:.86rem}
-.scores{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
-.scores div{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg);min-width:110px}
-.scores b{display:block;font:700 1.3rem var(--display)}
-.scores span{font-size:.78rem;color:var(--muted)}
-.tone{display:inline-block;background:#e7eefb;color:var(--accent);border-radius:99px;padding:2px 10px;font-size:.82rem;margin:0 4px 4px 0;text-transform:capitalize}
-.gprev{font:15px/1.8 var(--body);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;white-space:pre-wrap;max-height:320px;overflow:auto;margin:10px 0}
-.gprev u{text-decoration:none;border-bottom:2px solid var(--bad);cursor:pointer}
-.gprev u.t-clarity,.gprev u.t-wordiness,.gprev u.t-word-choice{border-bottom-color:#2f6fd6}
-.gprev u.on{background:rgba(179,54,47,.12)}
-.compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:10px 0}
-@media (max-width:760px){.compare{grid-template-columns:1fr}}
-.compare .gprev{margin:4px 0 0;max-height:380px}
-.compare .fixed{border-color:#bcd9c8;background:#f3f8f5}
-mark.add{background:rgba(43,122,87,.18);color:var(--ink);border-radius:3px;padding:0 1px;font-weight:600}
-.diff{font:15px/1.8 var(--body);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;white-space:pre-wrap;max-height:320px;overflow:auto;margin-top:8px}
-.diff del{color:var(--bad);text-decoration:line-through;opacity:.75;margin-right:4px}
-.issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-.issues li{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:6px;padding:10px 12px;background:var(--paper)}
-.issues li.t-clarity,.issues li.t-wordiness,.issues li.t-word-choice{border-left-color:#2f6fd6}
-.issues .ty{font:500 .7rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.issues .fix{margin:4px 0;font-size:.95rem}
-.issues del{color:var(--bad)} .issues ins{color:var(--good);text-decoration:none;font-weight:600}
-.issues .ex{font-size:.84rem;color:var(--muted)}
-.issues .act{display:flex;gap:6px;margin-top:6px}
-.issues .act button{padding:5px 12px;font-size:.84rem}
-.cite-row{display:flex;gap:8px;flex-wrap:wrap}
-.cite-row input{flex:1 1 260px;border:1px solid var(--line);border-radius:6px;padding:9px 12px;font:inherit;background:var(--bg);color:var(--ink);min-width:0}
-.cites{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.cites .c{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--paper);display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:start}
-.cites .c b{font:500 .72rem var(--mono);color:var(--muted);padding-top:3px}
-.cites .c .t{font-size:.93rem;line-height:1.55;padding-left:2em;text-indent:-2em}
-.cites .c button{padding:4px 10px;font-size:.8rem}
-.outbox{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
-.outbox textarea{min-height:260px;background:#f3f8f5;border-color:#bcd9c8}
-.coderow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:.88rem}
-.coderow input{border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);padding:7px 10px;font:inherit;min-width:0;flex:1 1 200px}
-.revise{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
-.hint{font-size:.86rem;color:var(--muted);margin:8px 0 0;max-width:68ch}
-mark.ph{background:var(--hl-mid);color:var(--ink);border-radius:3px;padding:0 3px;font-style:italic}
-ol.flags{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
-ol.flags li{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.fl-top{display:flex;justify-content:space-between;gap:10px;font:500 .72rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.fl-top .pct{color:var(--bad)} .fl-top .pct.mid{color:var(--warn)}
-.orig{font:16px/1.6 var(--display);margin:0}
-.orig span{border-radius:3px}
-.new{font:16px/1.6 var(--display);margin:0;padding:8px 10px;border-radius:6px;background:var(--bg);border-left:3px solid var(--good)}
-.why{font-size:.82rem;color:var(--muted);margin:0}
-.fl-act{display:flex;gap:8px;flex-wrap:wrap}
-.fl-act button{padding:5px 12px;font-size:.82rem}
-.fl-act button[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:var(--paper)}
-li.used .orig{text-decoration:line-through;opacity:.6}
-.empty{color:var(--muted);font-size:.9rem}
-details{font-size:.88rem;color:var(--muted)}
-details summary{cursor:pointer;color:var(--ink);font-weight:500}
-.about{margin:36px 0 12px;padding-top:24px;border-top:1px solid var(--line, #dfe3ea);max-width:900px}
-.about h2{font-size:1.25rem;margin:0 0 10px}
-.about h3{font-size:1rem;margin:0 0 6px}
-.about p{line-height:1.6}
-.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0 26px}
-@media (max-width:760px){.about-grid{grid-template-columns:1fr}}
-.about details{border-top:1px solid var(--line, #dfe3ea);padding:12px 0}
-details p{margin:8px 0 0}
+.gate .box{background:var(--paper);border-radius:12px;max-width:400px;width:100%;padding:26px 22px;text-align:center}
+.gate h2{font-size:1.3rem}
+.gate p{color:var(--muted);font-size:.93rem}
+.gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
+.gate .cancel{margin-top:12px;border:0;background:none;color:var(--muted);font-weight:500}
+.about{margin-top:40px;color:var(--ink)}
+.about h2{font-size:1.25rem;margin-top:24px}
+.about p{color:#2b3550}
+.about details{border-top:1px solid var(--line);padding:10px 0}
+.about summary{cursor:pointer;font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:14px 0}
+.steps div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px}
+.steps b{display:block;margin-bottom:4px}
+@media (max-width:640px){.steps,.sum{grid-template-columns:1fr} h1{font-size:1.7rem}}
+footer{margin-top:30px;font-size:.85rem;color:var(--muted)}
+footer a{color:var(--muted)}
 </style>
 </head>
 <body>
-
-
 <div class="wrap">
   <header>
     <div>
-      <p class="label" style="margin:0 0 6px">AI writing check for university assignments</p>
       <h1>Second <span>Read</span></h1>
-      <p class="tag">Check your assignment before you hand it in. Paste your essay and see which sentences read as machine-written, and why.</p>
+      <p class="tag">Free plagiarism &amp; grammar checker for students.</p>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
-    <div class="acct" id="acct" hidden><img id="acctPic" alt="" referrerpolicy="no-referrer"><span id="acctName"></span><button id="signOut" type="button">Sign out</button></div>
-    <button class="primary" id="signInTop" type="button" hidden>Sign in with Google</button>
-    <p class="notice"><strong>A score is a signal, not proof.</strong> AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Use this to revise, never as evidence against someone.</p>
+    <div>
+      <div class="acct" id="acct" hidden><img id="acctPic" alt="" referrerpolicy="no-referrer"><span id="acctName"></span><button id="signOut" type="button">Sign out</button></div>
+      <button class="primary" id="signInTop" type="button" hidden>Sign in with Google</button>
     </div>
   </header>
 
-  <div class="grid">
-    <section class="panel">
-      <div class="row">
-        <span class="label" id="inLabel">Your text</span>
+  <!-- Step 1: the text -->
+  <section class="card">
+    <textarea id="input" aria-label="Your text" placeholder="Paste your essay or assignment here…"></textarea>
+    <div class="bar">
+      <div class="left">
+        <label class="file">Upload Word or PDF<input type="file" id="file" accept=".docx,.pdf,.txt,.md"></label>
+        <button id="clear" type="button">Clear</button>
         <span class="meta" id="count">0 words</span>
       </div>
-      <textarea id="input" aria-labelledby="inLabel" placeholder="Paste your assignment here (at least 80 words works best)…"></textarea>
-      <div class="actions">
-        <button class="primary" id="analyze">Analyze with AI</button>
-        <button id="fullBtn">Humanize full text</button>
-        <button id="plagBtn">Check plagiarism</button>
-        <button id="quick">Quick check (offline)</button>
-        <label class="file">Upload Word, PDF or text<input type="file" id="file" accept=".docx,.pdf,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf,text/plain,text/markdown"></label>
-        <button id="clear">Clear</button>
-        <button id="stop" hidden>Stop</button>
-      </div>
-      <div class="status" id="status" role="status"></div>
-      <div class="bar" id="busy" hidden><i></i></div>
-      <div class="outbox" id="outBox" hidden>
-        <div class="row"><span class="label" id="outLabel">Humanized text</span><span class="meta" id="outCount"></span></div>
-        <textarea id="output" aria-labelledby="outLabel"></textarea>
-        <p class="hint" style="margin:8px 0 0">Read it through and make it yours. Fill in any <mark class="ph">[bracketed]</mark> parts with your own examples. Your original stays in the box above.</p>
-        <div class="actions">
-          <button class="primary" id="outCopy">Copy</button>
-          <button id="outWord">Download Word</button>
-          <button id="outUse">Check this version</button>
-        </div>
-        <div id="outDiffWrap" hidden style="margin-top:14px">
-          <div class="row"><span class="label">What changed</span><span class="meta" id="outDiffNote"></span></div>
-          <div class="diff" id="outDiff"></div>
-        </div>
-      </div>
-      <div class="tools" id="tools">
-        <div class="row"><span class="label">Writing assistant</span><span class="meta">Grammar · Clarity · Tone · Rewrite · Citations</span></div>
-        <div class="tabs" role="tablist">
-          <button role="tab" aria-selected="true" data-tab="tGrammar">Grammar &amp; clarity</button>
-          <button role="tab" aria-selected="false" data-tab="tRewrite">Rewrite</button>
-          <button role="tab" aria-selected="false" data-tab="tCite">Citations</button>
-        </div>
-        <div id="tGrammar">
-          <p class="hint" style="margin-top:0">Finds spelling, grammar and punctuation mistakes, wordy or unclear sentences, and tells you how your writing sounds. Accept a fix to change it in your text.</p>
-          <div class="actions"><button class="primary" id="gRun">Check grammar &amp; tone</button><button id="gAll" hidden>Accept all fixes</button></div>
-          <div id="gOut"></div>
-        </div>
-        <div id="tRewrite" hidden>
-          <p class="hint" style="margin-top:0">Select part of your text (or nothing, for all of it) and pick a style. The new version appears in a box below.</p>
-          <div class="chips" id="rwChips">
-            <button data-style="formal">Formal</button><button data-style="academic">Academic</button><button data-style="simpler">Simpler</button><button data-style="shorter">Shorter</button><button data-style="longer">Longer</button><button data-style="confident">Confident</button><button data-style="friendly">Friendly</button><button data-style="fluent">Fix &amp; make fluent</button>
-          </div>
-        </div>
-        <div id="tCite" hidden>
-          <p class="hint" style="margin-top:0">Paste a website link, a DOI, an ISBN, or a book title (add "by author" to be sure). You'll get APA, MLA and Chicago references.</p>
-          <div class="cite-row"><input id="citeQ" placeholder="e.g. https://www.bbc.com/news/... or 10.1038/nature12373 or The Great Gatsby by Fitzgerald"><button class="primary" id="citeRun">Make citation</button></div>
-          <div class="cites" id="citeOut"></div>
-          <div id="refBox" hidden style="margin-top:14px">
-            <div class="row"><span class="label">Your reference list</span><div class="actions" style="margin:0"><select id="refStyle"><option value="apa">APA</option><option value="mla">MLA</option><option value="chicago">Chicago</option></select><button id="refCopy">Copy list</button><button id="refClear">Clear</button></div></div>
-            <ol class="cites" id="refList" style="padding-left:20px"></ol>
-          </div>
-        </div>
-      </div>
-      <div class="coderow" id="codeRow" hidden><label for="code">Access code</label><input id="code" type="password" autocomplete="off" placeholder="Ask your instructor or site owner"></div>
+      <button class="primary big" id="check" type="button">Check my text</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <div class="progress" id="busy" hidden><i></i></div>
+  </section>
 
-      <div style="margin-top:22px">
-        <div class="row"><span class="label">Sentence map</span>
-          <div class="legend"><span><i class="sw" style="background:var(--hl-high)"></i>Likely AI</span><span><i class="sw" style="background:var(--hl-mid)"></i>Mixed</span><span><i class="sw"></i>Likely human</span><span style="text-decoration:underline wavy #6b4fbb;text-underline-offset:4px">Matches a web source</span></div>
-        </div>
-        <div id="report"></div>
-      </div>
+  <!-- Step 2: results -->
+  <section class="card" id="results" hidden>
+    <div class="sum">
+      <div id="sumPlag"><b>–</b><span>Plagiarism</span></div>
+      <div id="sumGram"><b>–</b><span>Grammar mistakes</span></div>
+    </div>
+    <div class="legend"><span><i style="background:rgba(107,79,187,.25)"></i>Copied from a source</span><span><i style="border-bottom:2px solid var(--bad);height:8px"></i>Grammar mistake</span></div>
+    <div class="view" id="view"></div>
+    <div class="next" id="next"></div>
+    <details class="list" id="plagList" hidden><summary>Copied sentences and sources</summary><ul class="items" id="plagItems"></ul></details>
+    <details class="list" id="gramList" hidden><summary>Grammar mistakes</summary><ul class="items" id="gramItems"></ul></details>
+  </section>
 
-      <div class="revise" id="revise">
-        <div class="row">
-          <span class="label">Flagged lines · <span id="flagCount">0</span></span>
-          <div class="actions" style="margin:0">
-            <button class="primary" id="rewrite" disabled>Humanize flagged lines</button>
-            <button id="copyOut" hidden>Copy revised text</button>
-            <button id="useOut" hidden>Put revised text in editor</button>
-          </div>
-        </div>
-        <p class="hint" id="revHint">These are the sentences marked AI-like or mixed. Humanize rewrites only these lines in plainer, more natural wording and leaves the rest of your text alone. Where a line needs your own example, you'll see <mark class="ph">[add your own example]</mark>.</p>
-        <ol class="flags" id="flags"></ol>
-      </div>
-    </section>
-
-    <aside class="side">
-      <section class="panel">
-        <span class="label">AI likelihood</span>
-        <div class="gauge" style="margin-top:12px">
-          <div class="ring" id="ring"><div><span><b id="score">–</b><br><small>/ 100</small></span></div></div>
-          <div>
-            <p class="verdict" id="verdict">Run a check to see a score</p>
-            <span class="pill" id="source">No analysis yet</span>
-          </div>
-        </div>
-        <p class="summary" id="summary" style="margin-top:14px"></p>
-        <div class="actions" id="reportActions" style="margin-top:14px">
-          <button id="dlReport" type="button">Download report</button>
-          <button id="copyReport" type="button">Copy summary</button>
-        </div>
-      </section>
-
-      <section class="panel" id="plagPanel">
-        <span class="label">Plagiarism check</span>
-        <div id="plagBox" style="margin-top:10px"><p class="summary" style="color:var(--muted)">Compares your most distinctive sentences with published books and websites to see if any were copied. Tap <b>Check plagiarism</b> to run it.</p></div>
-      </section>
-
-      <section class="panel">
-        <span class="label">Writing signals</span>
-        <ul class="sig" id="signals"></ul>
-      </section>
-
-      <section class="panel">
-        <span class="label">Text statistics</span>
-        <div class="stats" style="margin-top:10px">
-          <div class="stat"><b id="stBurst">–</b><span>Sentence variety</span></div>
-          <div class="stat"><b id="stAvg">–</b><span>Avg words / sentence</span></div>
-          <div class="stat"><b id="stVocab">–</b><span>Vocabulary range</span></div>
-          <div class="stat"><b id="stPhr">–</b><span>Stock AI phrases</span></div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <details>
-          <summary>How the score works</summary>
-          <p><strong>Quick check</strong> runs in your browser and nothing leaves the page. It measures how much your sentence lengths vary, how often you use phrases common in AI text ("delve", "it is important to note"), and how personal the voice is (contractions, "I").</p>
-          <p><strong>Analyze with AI</strong> sends the text to Claude (Anthropic's AI model), which reads each sentence and explains what feels generated. The final score blends both, 70% AI and 30% statistics. Your text is used only to produce the result and is not stored by this site.</p>
-          <p>If a sentence is flagged and you wrote it, that is common. Adding your own examples, opinions, and specific sources usually makes writing read as more human, and better.</p>
-        </details>
-      </section>
-    </aside>
-  </div>
+  <!-- Step 3: rewritten text -->
+  <section class="card out" id="out" hidden>
+    <h2 id="outTitle">Your rewritten text</h2>
+    <textarea id="output" aria-labelledby="outTitle"></textarea>
+    <p class="note" id="outNote"></p>
+    <div class="actions">
+      <button class="primary" id="outCopy" type="button">Copy</button>
+      <button id="outWord" type="button">Download Word</button>
+      <button id="outUse" type="button">Check this version again</button>
+    </div>
+    <h2 style="margin-top:20px">What changed</h2>
+    <div class="diff" id="diff"></div>
+    <p class="note">Green = new words · crossed out = removed · yellow = add a citation here</p>
+  </section>
 
   <section class="about" aria-labelledby="aboutH">
-    <h2 id="aboutH">A free AI detector and plagiarism checker for students</h2>
-    <p>Second Read helps university and college students check an assignment before they submit it. Paste your essay or upload a Word (.docx) or PDF file, and Second Read highlights the sentences that read as AI-written, explains why, and suggests a more natural rewrite. It can also check your text for plagiarism by comparing your most distinctive sentences with published books and websites. It is free: you just sign in with Google, and your text is not stored.</p>
-    <div class="about-grid">
-      <div><h3>1. Check for AI writing</h3><p>Each sentence gets a likelihood score. Flagged lines are highlighted so you can see exactly what sounds machine-written, such as stock phrases, flat rhythm, or vague claims.</p></div>
-      <div><h3>2. Fix grammar &amp; cite sources</h3><p>The writing assistant catches spelling, grammar and punctuation mistakes, unclear or wordy sentences and tone, rewrites in styles like formal or academic, and builds APA, MLA and Chicago citations.</p></div>
-      <div><h3>3. Check for plagiarism</h3><p>Second Read searches the web and book sources like Google Books, Project Gutenberg and the Internet Archive for sentences that match yours, and links to each source it finds.</p></div>
-      <div><h3>4. Revise and download</h3><p>Humanize just the flagged lines, or rewrite your full text into a second box you can copy or download as Word. You can also download a report with your scores, flagged sentences and sources to keep for your own records.</p></div>
+    <h2 id="aboutH">How Second Read works</h2>
+    <div class="steps">
+      <div><b>1. Paste or upload</b>Paste your essay, or upload a Word or PDF file.</div>
+      <div><b>2. Check</b>We compare your sentences with websites and books, and check every line for spelling, grammar and punctuation.</div>
+      <div><b>3. Fix in one click</b>Copied sentences are rewritten in your own words and grammar is fixed. Changes are highlighted.</div>
     </div>
-    <h2>Frequently asked questions</h2>
-    <details><summary>Is Second Read free?</summary><p>Yes. Second Read is completely free for everyone. You sign in with your Google account, but there is no payment, no subscription and no word-count paywall.</p></details>
-    <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Scores are a signal, not proof. Formal academic writing and writing by non-native English speakers are flagged more often, so use the results to revise your work, never as evidence against someone.</p></details>
-    <details><summary>Can it check a Word document or PDF?</summary><p>Yes. Click upload and choose a .docx, .pdf or .txt file. The text is read in your browser and placed in the box for checking.</p></details>
-    <details><summary>Does the plagiarism checker look at books?</summary><p>Yes. Along with websites, it searches book sources such as Google Books, Project Gutenberg and the Internet Archive, and marks each match as a book or a website.</p></details>
-    <details><summary>Does it check grammar like Grammarly?</summary><p>Yes. The writing assistant finds spelling, grammar and punctuation mistakes, flags wordy or unclear sentences, shows your tone, rewrites text in different styles (formal, academic, simpler, shorter and more), and makes APA, MLA and Chicago citations. It's free.</p></details>
-    <details><summary>Why do I need to sign in?</summary><p>Signing in with Google keeps the checker fair and free by limiting how many checks one person can run per minute. We only see your name and email address.</p></details>
-    <details><summary>Is my essay saved or shared?</summary><p>No. Your text is only used to produce your result and is not stored by this site.</p></details>
-    <p style="margin-top:18px;font-size:.88rem;color:var(--muted)"><a href="/privacy.html">Privacy policy</a></p>
+    <h2>Questions</h2>
+    <details><summary>Is it free?</summary><p>Yes. Second Read is free for every student. You just sign in with Google; there's no payment or word paywall.</p></details>
+    <details><summary>How does the plagiarism check work?</summary><p>It picks your most distinctive sentences and searches the web and book sources such as Google Books, Project Gutenberg and the Internet Archive for the same or nearly the same wording, then links to each source it finds.</p></details>
+    <details><summary>Do I still need to cite sources after the rewrite?</summary><p>Yes. Putting an idea in your own words still means it came from someone else. The rewrite marks those places with a yellow <b>[cite: …]</b> reminder so you can add a proper reference.</p></details>
+    <details><summary>Can it check Word documents and PDFs?</summary><p>Yes. Upload a .docx, .pdf or .txt file and the text is read right in your browser.</p></details>
+    <details><summary>Is my essay saved?</summary><p>No. Your text is only used to produce your result and is not stored by this site.</p></details>
+    <details><summary>Why do I need to sign in?</summary><p>Signing in keeps the checker fair and free by limiting how many checks one person can run per minute. We only see your name and email.</p></details>
   </section>
+  <footer><a href="/privacy.html">Privacy policy</a></footer>
 </div>
-<div id="tip" hidden></div>
+
 <div class="gate" id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gateH">
-  <div class="card">
-    <h2 id="gateH">Sign in to use Second Read</h2>
-    <p>It's still free. Signing in with Google keeps the checker fair for every student. We only see your name and email, and we never post anything or read your mail.</p>
+  <div class="box">
+    <h2 id="gateH">Sign in to check your text</h2>
+    <p>It's free. Signing in with Google keeps the checker fair for every student. We only see your name and email.</p>
     <div id="gbtn"></div>
     <button class="cancel" id="gateCancel" type="button">Not now</button>
   </div>
 </div>
 
 <script>
-const EXAMPLE = `Climate change is one of the most pressing issues of our time, and it is important to note that its effects are multifaceted. Moreover, rising global temperatures play a crucial role in shaping ecosystems, economies, and communities across the world. In today's rapidly evolving landscape, governments must navigate complex trade-offs to foster sustainable development.
-
-When I visited my grandparents' farm in Punjab last summer, the well they'd used for thirty years had gone dry. My grandfather just shrugged and said the rains come late now. That stuck with me more than any statistic I read for this essay.
-
-Furthermore, carbon pricing has emerged as a pivotal tool for addressing emissions. By leveraging market mechanisms, policymakers can harness economic incentives to drive meaningful change. In conclusion, a comprehensive approach that combines regulation, innovation, and public engagement is essential for a sustainable future.`;
-
-const PHRASES = ["delve","moreover","furthermore","additionally","in conclusion","it is important to note","it's important to note","plays a crucial role","play a crucial role","crucial role","tapestry","in today's","rapidly evolving","ever-evolving","navigate","landscape","foster","notably","pivotal","underscore","multifaceted","realm","showcase","seamless","robust","leverag","harness","vibrant","intricate","testament","comprehensive","meaningful","paramount","embark","holistic","nuanced","in summary","overall,","a myriad of","serves as","not only","essential for"];
-
 const $ = id => document.getElementById(id);
 const input = $("input");
-let sample = true, ctl = null, lastRun = null;
-
-function splitText(text){
-  const paras = text.replace(/\r/g,"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
-  let idx = 0;
-  return paras.map(p => (p.match(/[^.!?]+(?:[.!?]+["')\]]*|$)\s*/g) || [p]).map(s=>s.trim()).filter(Boolean).map(s=>({i:idx++, text:s})));
-}
-const words = s => (s.match(/[A-Za-z’'-]+/g) || []);
-const clamp = x => Math.max(0, Math.min(1, x));
-function phraseHits(s){ const l = s.toLowerCase(); return PHRASES.filter(p => l.includes(p)); }
-
-function heuristics(paras){
-  const sents = paras.flat();
-  const lens = sents.map(s => words(s.text).length).filter(n => n>0);
-  const all = words(sents.map(s=>s.text).join(" ")).map(w=>w.toLowerCase());
-  const n = all.length || 1;
-  const mean = lens.reduce((a,b)=>a+b,0)/(lens.length||1);
-  const sd = Math.sqrt(lens.reduce((a,b)=>a+(b-mean)**2,0)/(lens.length||1));
-  const cv = mean ? sd/mean : 0;
-  // moving type-token ratio, window 50
-  let mattr = 0, win = Math.min(50, n), cnt = 0;
-  for(let i=0;i+win<=all.length;i+=5){ mattr += new Set(all.slice(i,i+win)).size/win; cnt++; }
-  mattr = cnt ? mattr/cnt : 0;
-  let hits = 0; const found = new Set();
-  sents.forEach(s => { const h = phraseHits(s.text); hits += h.length; h.forEach(x=>found.add(x)); });
-  const density = hits / n * 100;
-  const personal = all.filter(w => /^(i|i'm|i've|i'd|my|me|we|our)$/.test(w) || /n't$|'re$|'ve$|'ll$|'d$/.test(w)).length;
-  const bScore = clamp((0.6 - cv) / 0.35);
-  const pScore = clamp(density / 1.6);
-  const cScore = clamp(1 - personal / n * 30);
-  const score = Math.round((0.35*bScore + 0.4*pScore + 0.25*cScore) * 100);
-  const perSentence = sents.map(s => {
-    const h = phraseHits(s.text).length, len = words(s.text).length;
-    const pers = words(s.text).some(w => /^(i|my|me)$/i.test(w) || /n't$|'d$/i.test(w));
-    let v = 0.25 + h*0.25 + (len>=18 && len<=32 ? 0.1 : 0) - (pers ? 0.3 : 0) - (len<10 ? 0.1 : 0);
-    return {i:s.i, likelihood: Math.round(clamp(v)*100), reason: h ? `Uses stock phrasing: ${phraseHits(s.text).slice(0,3).map(x=>`"${x.replace(/,$/,"")}"`).join(", ")}.` : pers ? "Personal voice and specific detail read as human." : "No strong signals either way."};
-  });
-  return {score, cv, mean, mattr, hits, found:[...found], personal, n, perSentence,
-    signals:[
-      {label: cv < 0.35 ? "Sentence lengths are very uniform" : cv < 0.55 ? "Sentence lengths vary somewhat" : "Sentence lengths vary naturally", level: cv<0.35?"bad":cv<0.55?"warn":"good"},
-      {label: hits ? `${hits} stock AI phrase${hits>1?"s":""} found` : "No stock AI phrases found", level: density>1?"bad":hits?"warn":"good"},
-      {label: personal/n > 0.03 ? "Personal voice present (I, my, contractions)" : "Little personal voice", level: personal/n > 0.03 ? "good" : "warn"}
-    ]};
-}
-
-function verdictFor(s){
-  if (s >= 70) return {t:"Reads as mostly AI-generated", c:"var(--bad)"};
-  if (s >= 40) return {t:"Mixed: some passages read as AI", c:"var(--warn)"};
-  return {t:"Reads as mostly human-written", c:"var(--good)"};
-}
-
-let current = null;
-let plag = null; // {texts:Set, data} // {paras, map}
-let rewrites = new Map(); // i -> {text, why, used}
-
-const SWAPS = [
-  [/\bit is important to note that\s*/gi,""],[/\bit's important to note that\s*/gi,""],
-  [/\bmoreover,\s*/gi,"Also, "],[/\bfurthermore,\s*/gi,"On top of that, "],[/\badditionally,\s*/gi,"Also, "],
-  [/\bin conclusion,\s*/gi,"So, "],[/\bin summary,\s*/gi,"So, "],[/\boverall,\s*/gi,""],[/\bnotably,\s*/gi,""],
-  [/\bplays? a crucial role in\b/gi,m=>/plays/i.test(m)?"matters a lot for":"matter a lot for"],
-  [/\bin today's rapidly evolving landscape,?\s*/gi,"Today, "],[/\bin today's\b/gi,"in today's"],
-  [/\bdelve into\b/gi,"look at"],[/\bdelve\b/gi,"dig"],[/\bmultifaceted\b/gi,"complicated"],
-  [/\bpivotal\b/gi,"key"],[/\bleverag(e|ing)\b/gi,m=>/ing/i.test(m)?"using":"use"],[/\bharness(ing)?\b/gi,m=>/ing/i.test(m)?"using":"use"],
-  [/\bfoster\b/gi,"encourage"],[/\bnavigate\b/gi,"work through"],[/\butiliz(e|ing)\b/gi,m=>/ing/i.test(m)?"using":"use"],
-  [/\bcomprehensive\b/gi,"thorough"],[/\bmeaningful\b/gi,"real"],[/\bparamount\b/gi,"most important"],
-  [/\bserves as\b/gi,"is"],[/\ba myriad of\b/gi,"many"],[/\bshowcase\b/gi,"show"],[/\bseamless(ly)?\b/gi,"smooth$1"],
-];
-function offlineHumanize(s){
-  let t = s; SWAPS.forEach(([re,rep]) => { t = t.replace(re, rep); });
-  t = t.replace(/\s{2,}/g," ").replace(/^\s*([a-z])/, (m,c)=>c.toUpperCase());
-  return t;
-}
-
-function flagged(){
-  if (!current) return [];
-  return current.paras.flat().map(s => ({...s, r: current.map.get(s.i) || {likelihood:0}})).filter(s => s.r.likelihood >= 40);
-}
-
-function renderFlags(){
-  const list = flagged(), ol = $("flags"); ol.textContent = "";
-  $("flagCount").textContent = list.length;
-  $("rewrite").disabled = !list.length;
-  const anyUsed = [...rewrites.values()].some(r => r.used);
-  $("copyOut").hidden = $("useOut").hidden = !anyUsed;
-  if (!list.length){ const p = document.createElement("li"); p.className="empty"; p.style.border="0"; p.style.padding="0"; p.textContent = "No AI-like lines found. Nothing to humanize."; ol.append(p); return; }
-  list.forEach(s => {
-    const li = document.createElement("li");
-    const rw = rewrites.get(s.i);
-    if (rw && rw.used) li.classList.add("used");
-    const top = document.createElement("div"); top.className = "fl-top";
-    const a = document.createElement("span"); a.textContent = `Sentence ${s.i+1}`;
-    const b = document.createElement("span"); b.className = "pct" + (s.r.likelihood < 65 ? " mid" : ""); b.textContent = `${s.r.likelihood}% AI-like`;
-    top.append(a,b);
-    const o = document.createElement("p"); o.className = "orig";
-    const os = document.createElement("span"); os.className = "s " + (s.r.likelihood >= 65 ? "high" : "mid"); os.style.cursor="default"; os.textContent = s.text; o.append(os);
-    li.append(top, o);
-    if (s.r.reason){ const w = document.createElement("p"); w.className="why"; w.textContent = "Why flagged: " + s.r.reason; li.append(w); }
-    if (rw){
-      const n = document.createElement("p"); n.className = "new";
-      rw.text.split(/(\[[^\]]+\])/).forEach(part => {
-        if (/^\[[^\]]+\]$/.test(part)){ const m = document.createElement("mark"); m.className="ph"; m.textContent = part; n.append(m); }
-        else n.append(part);
-      });
-      li.append(n);
-      if (rw.why){ const w = document.createElement("p"); w.className="why"; w.textContent = "What changed: " + rw.why; li.append(w); }
-      const act = document.createElement("div"); act.className = "fl-act";
-      const use = document.createElement("button"); use.setAttribute("aria-pressed", rw.used ? "true":"false");
-      use.textContent = rw.used ? "Using this version" : "Use this version";
-      use.onclick = () => { rw.used = !rw.used; renderFlags(); };
-      act.append(use); li.append(act);
-    }
-    ol.append(li);
-  });
-}
-
-function revisedText(){
-  return current.paras.map(p => p.map(s => { const r = rewrites.get(s.i); return r && r.used ? r.text : s.text; }).join(" ")).join("\n\n");
-}
-
-async function humanize(){
-  const list = flagged(); if (!list.length) return;
-  if (!sample){
-    list.forEach(s => { const t = offlineHumanize(s.text); rewrites.set(s.i, {text:t, why: t === s.text ? "No stock phrases to swap. Try rewording this in your own words or adding a specific example." : "Swapped stock AI phrases for plainer words.", used: t !== s.text}); });
-    renderFlags(); setStatus("Offline humanize swapped stock phrases. The AI rewrite is unavailable right now."); return;
-  }
-  const context = current.paras.flat().filter(s => (current.map.get(s.i)||{likelihood:0}).likelihood < 40).map(s => s.text).join(" ").slice(0, 4000);
-  ctl = new AbortController();
-  busy(true); $("rewrite").disabled = true; setStatus("The AI is rewriting the flagged lines…");
-  try {
-    const r = (await api("/api/humanize", {targets: list.map(s => ({i:s.i, text:s.text})), context}, ctl.signal)).rewrites;
-    (Array.isArray(r) ? r : []).forEach(x => { const i = Number(x.i); if (list.some(s => s.i === i) && x.rewrite) rewrites.set(i, {text:String(x.rewrite).trim(), why:String(x.why||""), used:true}); });
-    renderFlags();
-    setStatus("Rewrites ready and selected. Untick any you don't want, fill in the bracketed parts, then copy or put the text back in the editor.");
-  } catch(e){
-    if (e && e.code === "cancelled") setStatus("Stopped.");
-    else setStatus(ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment.", true);
-  } finally { busy(false); renderFlags(); }
-}
-
-function render(paras, result){
-  const map = new Map(result.sentences.map(s => [s.i, s]));
-  current = {paras, map}; rewrites = new Map();
-  const rep = $("report"); rep.textContent = "";
-  paras.forEach(p => {
-    const el = document.createElement("p");
-    p.forEach((s, k) => {
-      const span = document.createElement("span");
-      const r = map.get(s.i) || {likelihood:0, reason:""};
-      span.className = "s " + (r.likelihood >= 65 ? "high" : r.likelihood >= 40 ? "mid" : "low") + (plag && plag.texts.has(s.text) ? " pl" : "");
-      span.textContent = s.text;
-      span.dataset.tip = `${r.likelihood}% AI-like. ${r.reason || ""}`;
-      span.tabIndex = 0;
-      el.append(span); if (k < p.length-1) el.append(" ");
-    });
-    rep.append(el);
-  });
-  const v = verdictFor(result.score);
-  $("ring").style.setProperty("--p", result.score);
-  $("ring").style.setProperty("--c", v.c);
-  $("score").textContent = result.score;
-  $("verdict").textContent = v.t;
-  $("source").textContent = result.source;
-  $("summary").textContent = result.summary || "";
-  const ul = $("signals"); ul.textContent = "";
-  result.signals.forEach(sg => {
-    const li = document.createElement("li");
-    const d = document.createElement("i"); d.className="dot";
-    d.style.background = `var(--${sg.level === "bad" ? "bad" : sg.level === "warn" ? "warn" : "good"})`;
-    const t = document.createElement("span"); t.textContent = sg.label;
-    li.append(d, t); ul.append(li);
-  });
-  renderFlags();
-}
-
-function stats(h){
-  $("stBurst").textContent = h.cv.toFixed(2);
-  $("stAvg").textContent = h.mean.toFixed(1);
-  $("stVocab").textContent = Math.round(h.mattr*100) + "%";
-  $("stPhr").textContent = h.hits;
-}
-
-function quickCheck(note){
-  const text = input.value.trim();
-  if (!text){ setStatus("Paste some text first.", true); return; }
-  const paras = splitText(text);
-  const h = heuristics(paras);
-  stats(h);
-  render(paras, {score:h.score, sentences:h.perSentence, signals:h.signals, source:"Quick check · statistics only",
-    summary: words(text).length < 80 ? "This text is short, so the score is less reliable. 150+ words gives a better read." : "Based on sentence variety, stock phrasing, and personal voice. Run Analyze with AI for a sentence-by-sentence read."});
-  setStatus(note || "");
-  return {paras, h};
-}
-
-function setStatus(msg, err){ const s=$("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
-function busy(on){ $("busy").hidden = !on; $("stop").hidden = !on; ["analyze","quick","plagBtn","fullBtn","gRun","citeRun"].forEach(id => $(id).disabled = on); document.querySelectorAll("#rwChips button").forEach(b => b.disabled = on); }
+let ctl = null, last = null;
+const words = s => (s.match(/[A-Za-z0-9’'-]+/g) || []);
+function setStatus(msg, err){ $("status").textContent = msg; $("status").classList.toggle("err", !!err); }
+function busy(on){ $("busy").hidden = !on; ["check", "clear"].forEach(id => $(id).disabled = on); document.querySelectorAll("#next button").forEach(b => b.disabled = on); }
+function updateCount(){ const n = words(input.value).length; $("count").textContent = `${n} word${n === 1 ? "" : "s"}`; }
+input.addEventListener("input", updateCount);
+$("clear").onclick = () => { input.value = ""; updateCount(); $("results").hidden = true; $("out").hidden = true; setStatus(""); input.focus(); };
 
 const ERR = {
-  rate_limited:"Too many checks in a short time. Wait a minute, then try again.",
-  too_long:"That text is too long. Check one section at a time (about 3,000 words max).",
-  need_code:"This site needs an access code. Enter it below the buttons, then try again.",
-  bad_code:"That access code isn't right. Check it and try again.",
-  not_configured:"The site owner hasn't finished setting up the AI yet. The quick check still works.",
-  refused:"The AI couldn't analyze this text. Showing the quick check instead.",
-  search_disabled:"The plagiarism check isn't switched on yet. The site owner needs to enable web search in the Anthropic Console.",
-  invalid_json:"The AI's answer came back in an unexpected format. Try again.",
-  need_login:"Please sign in with Google to continue. It's free.",
-  not_found:"Couldn't find that source. Check the link, DOI or ISBN, or try the book title with the author's name.",
+  rate_limited: "Too many checks in a short time. Wait a minute, then try again.",
+  too_long: "That text is too long. Check one section at a time (about 3,000 words max).",
+  not_configured: "The site isn't fully set up yet. Please try again later.",
+  need_login: "Please sign in with Google to continue. It's free.",
+  search_disabled: "The plagiarism search is switched off right now.",
+  invalid_json: "The checker's answer came back in an unexpected format. Try again.",
 };
+const errMsg = e => ERR[e && e.code] || "Couldn't reach the checker. Try again in a moment.";
 
-async function analyze(){
-  const base = quickCheck();
-  if (!base) return;
-  if (!sample){ setStatus("Claude isn't available in this view, so this is the quick check only."); return; }
-  const {paras, h} = base;
-  ctl = new AbortController();
-  busy(true); setStatus("The AI is reading your text… this usually takes 15–40 seconds.");
-  try {
-    const r = await api("/api/analyze", {sentences: paras.flat().map(s => ({i:s.i, text:s.text}))}, ctl.signal);
-    const cs = Math.max(0, Math.min(100, Number(r.score) || 0));
-    const sents = Array.isArray(r.sentences) ? r.sentences.map(s => ({i:Number(s.i), likelihood:Math.max(0,Math.min(100,Number(s.likelihood)||0)), reason:String(s.reason||"")})) : h.perSentence;
-    const sig = (Array.isArray(r.signals) ? r.signals : []).slice(0,5).map(s => ({label:String(s.label||""), level:["bad","warn","good"].includes(s.level)?s.level:"warn"}));
-    const score = Math.round(cs*0.7 + h.score*0.3);
-    render(paras, {score, sentences:sents, signals: sig.length ? sig : h.signals, summary:String(r.summary||""),
-      source:`AI ${cs} · statistics ${h.score} · blended`});
-    setStatus("Done. Hover or tap a sentence to see why it was marked.");
-  } catch(e){
-    if (e && e.code === "cancelled") setStatus("Stopped. Showing the quick check.");
-    else setStatus(ERR[e && e.code] || "Something went wrong reaching the AI. Showing the quick check; try again in a moment.", true);
-  } finally { busy(false); }
+// Split into sentences, keeping each sentence's position in the original text.
+function sentences(text){
+  const out = []; const re = /[^.!?\n]+(?:[.!?]+["')\]]*)?/g; let m;
+  while ((m = re.exec(text))){ const raw = m[0]; const lead = raw.length - raw.trimStart().length; const t = raw.trim(); if (t.length > 1) out.push({ i: out.length, text: t, s: m.index + lead, e: m.index + lead + t.length }); }
+  return out;
 }
 
-function getCode(){ try { return localStorage.getItem("sr_code") || ""; } catch { return ""; } }
-$("code").value = getCode();
-$("code").addEventListener("change", () => { try { localStorage.setItem("sr_code", $("code").value.trim()); } catch {} });
 async function api(path, body, signal){
   let res;
   try {
-    const headers = {"content-type":"application/json"};
+    const headers = { "content-type": "application/json" };
     if (auth.token) headers.authorization = "Bearer " + auth.token;
-    res = await fetch(path, {method:"POST", headers, body: JSON.stringify({...body, code: $("code").value.trim()}), signal});
-  } catch (e) {
-    throw {code: e && e.name === "AbortError" ? "cancelled" : "upstream_error"};
-  }
+    res = await fetch(path, { method: "POST", headers, body: JSON.stringify(body), signal });
+  } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error" }; }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    if (data.code === "need_code" || data.code === "bad_code") $("codeRow").hidden = false;
-    if (data.code === "need_login") { setToken(null); openGate(); }
-    throw {code: data.code || "upstream_error"};
-  }
+  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } throw { code: data.code || "upstream_error" }; }
   return data;
 }
-function updateCount(){ const n = words(input.value).length; $("count").textContent = `${n} word${n===1?"":"s"}`; }
-input.addEventListener("input", () => { updateCount(); $("inLabel").textContent = "Your text"; if (plag){ plag = null; $("plagBox").innerHTML = '<p class="summary" style="color:var(--muted)">Your text changed. Tap <b>Check plagiarism</b> to check it again.</p>'; } });
-$("analyze").onclick = analyze;
-$("quick").onclick = () => quickCheck("Quick check done. Nothing left your browser.");
-$("stop").onclick = () => ctl && ctl.abort();
-$("rewrite").onclick = humanize;
-$("copyOut").onclick = async () => {
-  const t = revisedText();
-  try { await navigator.clipboard.writeText(t); setStatus("Revised text copied."); }
-  catch { input.value = t; updateCount(); input.focus(); input.select(); setStatus("Copy was blocked here, so the revised text is in the editor and selected. Press Ctrl+C / Cmd+C."); }
-};
-$("useOut").onclick = () => { input.value = revisedText(); updateCount(); $("inLabel").textContent = "Your text · revised"; quickCheck("Revised text is in the editor. Fill in any [bracketed] parts, then check it again."); input.scrollIntoView({behavior:"smooth", block:"center"}); };
-$("clear").onclick = () => { input.value=""; updateCount(); $("inLabel").textContent="Your text"; input.focus(); };
-function loadScript(src){
-  return new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = src; sc.onload = ok; sc.onerror = () => bad(new Error("load")); document.head.append(sc); });
+
+/* ---------- Check: plagiarism + grammar together ---------- */
+async function check(){
+  const text = input.value.replace(/\r\n/g, "\n");
+  if (words(text).length < 15){ setStatus("Paste at least a few sentences (15+ words).", true); return; }
+  const sents = sentences(text);
+  ctl = new AbortController(); busy(true);
+  $("out").hidden = true;
+  setStatus("Checking grammar and searching websites and books for copied text… this can take up to a minute.");
+  const [pl, gr] = await Promise.allSettled([
+    api("/api/plagiarism", { sentences: sents.map(s => ({ i: s.i, text: s.text })) }, ctl.signal),
+    api("/api/write", { mode: "review", text }, ctl.signal),
+  ]);
+  busy(false);
+  if (pl.status === "rejected" && gr.status === "rejected"){ setStatus(errMsg(pl.reason), true); return; }
+  last = { text, sents, plag: pl.status === "fulfilled" ? pl.value : null, gram: gr.status === "fulfilled" ? gr.value : null };
+  render();
+  const missing = [!last.plag && "plagiarism", !last.gram && "grammar"].filter(Boolean);
+  setStatus(missing.length ? `Done, but the ${missing[0]} check didn't finish. You can run Check again.` : "Done. See your results below.", !!missing.length);
+  $("results").scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+function render(){
+  const { text, sents, plag, gram } = last;
+  const matches = plag ? plag.matches : [];
+  const issues = gram ? gram.issues : [];
+  $("results").hidden = false;
+
+  // Summary
+  const sp = $("sumPlag"), sg = $("sumGram");
+  sp.className = !plag ? "" : matches.length ? "warn" : "ok";
+  sp.querySelector("b").textContent = !plag ? "?" : matches.length ? `${matches.length} found` : "None";
+  sp.querySelector("span").textContent = !plag ? "Plagiarism check didn't finish" : matches.length ? `${100 - Math.round(plag.originality)}% may be copied` : "No copied text found";
+  sg.className = !gram ? "" : issues.length ? "warn" : "ok";
+  sg.querySelector("b").textContent = !gram ? "?" : String(issues.length);
+  sg.querySelector("span").textContent = !gram ? "Grammar check didn't finish" : issues.length ? "Grammar mistakes" : "No grammar mistakes";
+
+  // Highlighted view: purple = copied sentence, red underline = grammar mistake
+  const ranges = [];
+  matches.forEach(m => { const s = sents.find(x => x.i === m.i); if (s) ranges.push({ s: s.s, e: s.e, kind: "pl", m }); });
+  issues.forEach(x => { const i = text.indexOf(x.original); if (i >= 0) ranges.push({ s: i, e: i + x.original.length, kind: "gm", x }); });
+  const cuts = new Set([0, text.length]); ranges.forEach(r => { cuts.add(r.s); cuts.add(r.e); });
+  const pts = [...cuts].sort((a, b) => a - b);
+  const view = $("view"); view.textContent = "";
+  for (let k = 0; k < pts.length - 1; k++){
+    const a = pts[k], b = pts[k + 1], seg = text.slice(a, b);
+    const pl = ranges.find(r => r.kind === "pl" && r.s <= a && r.e >= b);
+    const gm = ranges.find(r => r.kind === "gm" && r.s <= a && r.e >= b);
+    if (!pl && !gm){ view.append(document.createTextNode(seg)); continue; }
+    const el = document.createElement("span");
+    el.className = [pl && "pl", gm && "gm"].filter(Boolean).join(" ");
+    el.textContent = seg;
+    el.title = [pl && `Matches: ${pl.m.title}`, gm && `${gm.x.type}: “${gm.x.original}” → “${gm.x.suggestion}”`].filter(Boolean).join("\n");
+    view.append(el);
+  }
+
+  // Lists
+  const pi = $("plagItems"); pi.textContent = "";
+  matches.forEach(m => { const s = sents.find(x => x.i === m.i); const li = document.createElement("li"); li.className = "p"; li.append(document.createTextNode(`“${s ? s.text : ""}”`)); const sm = document.createElement("small"); sm.append(document.createTextNode(`${m.type === "book" ? "Book" : "Website"} · ${m.match === "exact" ? "exact" : "close"} match: `)); const a = document.createElement("a"); a.href = m.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = m.title || m.url; sm.append(a); li.append(sm); pi.append(li); });
+  $("plagList").hidden = !matches.length;
+  const gi = $("gramItems"); gi.textContent = "";
+  issues.forEach(x => { const li = document.createElement("li"); const del = document.createElement("del"); del.textContent = x.original; const ins = document.createElement("ins"); ins.textContent = x.suggestion || "(remove)"; li.append(del, document.createTextNode(" → "), ins); const sm = document.createElement("small"); sm.textContent = x.explanation; li.append(sm); gi.append(li); });
+  $("gramList").hidden = !issues.length;
+
+  // What to do next
+  const nx = $("next"); nx.textContent = ""; nx.className = "next"; nx.hidden = !(plag || gram);
+  const p = document.createElement("p"); const btn = document.createElement("button"); btn.className = "primary big"; btn.type = "button";
+  if (matches.length){
+    nx.classList.add("plag");
+    p.textContent = `${matches.length} sentence${matches.length === 1 ? " matches" : "s match"} published sources${issues.length ? ` and there ${issues.length === 1 ? "is 1 grammar mistake" : `are ${issues.length} grammar mistakes`}` : ""}. Rewrite the full text in your own words and fix the grammar.`;
+    btn.textContent = "Rewrite in my own words"; btn.onclick = requireLogin(rewriteOriginal);
+    nx.append(p, btn);
+  } else if (issues.length){
+    nx.classList.add("gram");
+    p.textContent = `No copied text found. Fix ${issues.length === 1 ? "the grammar mistake" : `all ${issues.length} grammar mistakes`} in one click.`;
+    btn.textContent = "Fix all grammar"; btn.onclick = fixGrammar;
+    nx.append(p, btn);
+  } else {
+    nx.classList.add("done"); nx.textContent = "Looks great: no copied text and no grammar mistakes found.";
+  }
+}
+
+function showOutput(newText, title, note){
+  $("output").value = newText; $("outTitle").textContent = title; $("outNote").textContent = note || "";
+  $("out").hidden = false; renderDiff(); $("out").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function fixGrammar(){
+  const { text, gram } = last; let out = text;
+  gram.issues.forEach(x => { const i = out.indexOf(x.original); if (i >= 0) out = out.slice(0, i) + x.suggestion + out.slice(i + x.original.length); });
+  showOutput(out, "Your corrected text", "All grammar fixes applied. Read it through before you hand it in.");
+  setStatus("Grammar fixed. Your corrected text is below.");
+}
+
+async function rewriteOriginal(){
+  const { text, sents, plag } = last;
+  const flagged = (plag ? plag.matches : []).map(m => { const s = sents.find(x => x.i === m.i); return s ? { text: s.text, source: m.title || m.url } : null; }).filter(Boolean);
+  ctl = new AbortController(); busy(true); setStatus("Rewriting your text in your own words and fixing grammar…");
+  try {
+    const d = await api("/api/write", { mode: "original", text, flagged }, ctl.signal);
+    showOutput(d.text, "Your text in your own words", d.cut ? "This was very long and may be cut off at the end. Rewrite the rest in a second check." : "Copied sentences are reworded and grammar is fixed. Add a real reference wherever you see a yellow [cite: …] reminder, then check it again.");
+    setStatus("Done. Your rewritten text is below.");
+  } catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : errMsg(e), true); }
+  finally { busy(false); }
+}
+
+/* ---------- What changed (word diff) ---------- */
+function diffWords(a, b){
+  const A = a.split(/(\s+)/), B = b.split(/(\s+)/);
+  if (A.length * B.length > 9e6) return null;
+  const n = A.length, m = B.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m){ if (A[i] === B[j]){ out.push([0, A[i]]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) out.push([-1, A[i++]]); else out.push([1, B[j++]]); }
+  while (i < n) out.push([-1, A[i++]]); while (j < m) out.push([1, B[j++]]);
+  return out;
+}
+function renderDiff(){
+  const box = $("diff"); box.textContent = "";
+  const after = $("output").value, d = last ? diffWords(last.text, after) : null;
+  if (!d){ box.textContent = after; return; }
+  let inCite = false;
+  d.forEach(([t, w]) => {
+    if (t === -1){ if (w.trim()){ const el = document.createElement("del"); el.textContent = w; box.append(el); } return; }
+    if (t === 0 || !w.trim()){ box.append(document.createTextNode(w)); return; }
+    if (/\[cite/i.test(w)) inCite = true;
+    const el = document.createElement("mark"); el.className = inCite ? "cite" : "add"; el.textContent = w; box.append(el);
+    if (inCite && w.includes("]")) inCite = false;
+  });
+}
+$("output").addEventListener("input", () => { clearTimeout(renderDiff.t); renderDiff.t = setTimeout(renderDiff, 400); });
+$("outCopy").onclick = async () => { try { await navigator.clipboard.writeText($("output").value); setStatus("Copied."); } catch { $("output").select(); setStatus("Copy was blocked. Press Ctrl+C / Cmd+C.", true); } };
+$("outUse").onclick = () => { input.value = $("output").value; updateCount(); $("out").hidden = true; window.scrollTo({ top: 0, behavior: "smooth" }); $("check").click(); };
+
+function loadScript(src){ return new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = src; sc.onload = ok; sc.onerror = () => bad(new Error("load")); document.head.append(sc); }); }
+function xmlEsc(t){ return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+$("outWord").onclick = async () => {
+  try {
+    if (!window.JSZip) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+    const body = $("output").value.replace(/\r\n/g, "\n").split("\n").map(p => p.trim() ? `<w:p><w:r><w:t xml:space="preserve">${xmlEsc(p)}</w:t></w:r></w:p>` : `<w:p/>`).join("");
+    const zip = new JSZip();
+    zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    zip.file("word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`);
+    const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "second-read.docx"; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch { setStatus("Couldn't make the Word file. Use Copy instead.", true); }
+};
+
+/* ---------- Upload ---------- */
 async function readDocx(f){
   if (!window.mammoth) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
-  const r = await window.mammoth.extractRawText({ arrayBuffer: await f.arrayBuffer() });
-  return r.value;
+  return (await window.mammoth.extractRawText({ arrayBuffer: await f.arrayBuffer() })).value;
 }
 async function readPdf(f){
   if (!window.pdfjsLib){
@@ -647,338 +395,17 @@ async function readPdf(f){
 $("file").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   if (f.size > 15e6){ setStatus("That file is over 15 MB. Paste the text instead.", true); return; }
-  const name = f.name.toLowerCase();
-  setStatus("Reading " + f.name + "…");
+  const name = f.name.toLowerCase(); setStatus("Reading " + f.name + "…");
   try {
     let text;
     if (name.endsWith(".docx")) text = await readDocx(f);
     else if (name.endsWith(".pdf")) text = await readPdf(f);
-    else if (name.endsWith(".doc")) { setStatus("Old .doc files aren't supported. In Word, choose Save As → .docx, then upload again.", true); return; }
     else text = await f.text();
     text = String(text || "").trim();
-    if (!text){ setStatus("No text found in " + f.name + ". If it's a scanned PDF, copy and paste the text instead.", true); return; }
-    input.value = text; updateCount(); $("inLabel").textContent = "Your text · " + f.name;
-    quickCheck("Loaded " + f.name + ". Quick check shown; run Analyze with AI for a sentence-by-sentence read.");
-  } catch (err) {
-    setStatus("Couldn't read " + f.name + ". Try saving it again, or copy and paste the text.", true);
-  }
+    if (!text){ setStatus("No text found in " + f.name + ". If it's a scanned PDF, paste the text instead.", true); return; }
+    input.value = text; updateCount(); setStatus("Loaded " + f.name + ". Tap Check my text.");
+  } catch { setStatus("Couldn't read " + f.name + ". Try copying and pasting the text.", true); }
 };
-
-/* ---------- Plagiarism ---------- */
-function renderPlag(){
-  const box = $("plagBox"); box.textContent = "";
-  if (!plag) return;
-  const d = plag.data;
-  const top = document.createElement("div"); top.className = "pbig";
-  const b = document.createElement("b"); b.textContent = d.originality + "%";
-  b.style.color = d.matches.length ? (d.originality < 70 ? "var(--bad)" : "var(--warn)") : "var(--good)";
-  const sp = document.createElement("span"); sp.textContent = "original · " + d.checked + " sentence" + (d.checked === 1 ? "" : "s") + " searched";
-  sp.style.color = "var(--muted)"; top.append(b, sp); box.append(top);
-  const p = document.createElement("p"); p.className = "summary";
-  p.textContent = d.summary || (d.matches.length ? `${d.matches.length} sentence${d.matches.length === 1 ? "" : "s"} matched text found online.` : "No copied text found in the sentences checked.");
-  box.append(p);
-  const map = new Map(current ? current.paras.flat().map(s => [s.i, s.text]) : []);
-  d.matches.forEach(m => {
-    const row = document.createElement("div"); row.className = "pmatch";
-    const q = document.createElement("q"); q.textContent = map.get(m.i) || ("Sentence " + (m.i + 1));
-    const meta = document.createElement("span"); meta.style.fontSize = ".85rem"; meta.style.color = "var(--muted)";
-    meta.textContent = (m.type === "book" ? "📖 Book · " : "🌐 Website · ") + (m.match === "exact" ? "Exact match" : "Close match") + (m.note ? " · " + m.note : "");
-    const a = document.createElement("a"); a.href = m.url; a.target = "_blank"; a.rel = "noopener nofollow"; a.textContent = m.title || m.url;
-    row.append(q, meta, a); box.append(row);
-  });
-  const n = document.createElement("p"); n.className = "summary"; n.style.cssText = "color:var(--muted);font-size:.82rem;margin-top:8px";
-  n.textContent = "Checks your most distinctive sentences against websites and books that are searchable online (Google Books, Project Gutenberg, Internet Archive). It can't see full copyrighted books, paywalled journals, or other students' papers, so it won't catch everything.";
-  box.append(n);
-}
-$("plagBtn").onclick = async () => {
-  const base = current ? { paras: current.paras } : quickCheck();
-  if (!base) return;
-  const paras = base.paras || current.paras;
-  const sents = paras.flat();
-  if (sents.length < 2){ setStatus("Add a little more text before checking for plagiarism.", true); return; }
-  ctl = new AbortController();
-  busy(true); setStatus("Searching books and websites for matching text… this can take up to a minute.");
-  $("plagBox").innerHTML = '<div class="bar"><i></i></div>';
-  try {
-    const d = await api("/api/plagiarism", { sentences: sents.map(s => ({ i: s.i, text: s.text })) }, ctl.signal);
-    const textByI = new Map(sents.map(s => [s.i, s.text]));
-    plag = { data: d, texts: new Set(d.matches.map(m => textByI.get(m.i)).filter(Boolean)) };
-    renderPlag();
-    document.querySelectorAll("#report .s").forEach(el => { el.classList.toggle("pl", plag.texts.has(el.textContent)); });
-    setStatus(d.matches.length ? "Plagiarism check done. Matching sentences are underlined in purple." : "Plagiarism check done. No copied text found in the sentences checked.");
-  } catch (e) {
-    $("plagBox").textContent = "";
-    const p = document.createElement("p"); p.className = "summary"; p.style.color = "var(--bad)";
-    p.textContent = e && e.code === "cancelled" ? "Stopped." : (ERR[e && e.code] || "The plagiarism check couldn't finish. Try again in a moment.");
-    $("plagBox").append(p);
-    setStatus("");
-  } finally { busy(false); }
-};
-
-/* ---------- Report ---------- */
-function esc(t){ return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function reportData(){
-  return {
-    score: $("score").textContent, verdict: $("verdict").textContent, source: $("source").textContent, summary: $("summary").textContent,
-    signals: [...document.querySelectorAll("#signals li")].map(li => li.textContent.trim()),
-    paras: current ? current.paras.map(p => p.map(s => ({ text: s.text, r: current.map.get(s.i) || { likelihood: 0, reason: "" } }))) : [],
-    plag: plag ? plag.data : null,
-    date: new Date().toLocaleString("en-CA", { dateStyle: "long", timeStyle: "short" })
-  };
-}
-function reportHtml(d){
-  const body = d.paras.map(p => "<p>" + p.map(s => {
-    const cls = s.r.likelihood >= 65 ? "h" : s.r.likelihood >= 40 ? "m" : "";
-    return cls ? `<span class="${cls}" title="${esc(s.r.likelihood + "% AI-like. " + (s.r.reason || ""))}">${esc(s.text)}</span>` : esc(s.text);
-  }).join(" ") + "</p>").join("");
-  const flagged = d.paras.flat().filter(s => s.r.likelihood >= 40);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Second Read report</title>
-<style>body{font:15px/1.6 Georgia,serif;color:#15233f;background:#f4f6f9;margin:0;padding:24px 16px}main{max-width:780px;margin:0 auto;background:#fff;border:1px solid #d8dee8;border-radius:6px;padding:28px}
-h1{margin:0;color:#1d3a6e;font-size:1.7rem}h1 i{color:#2b7a57}.meta{color:#5b6579;font:13px system-ui,sans-serif;margin:4px 0 18px}.score{font-size:2.4rem;font-weight:700;color:#1d3a6e}
-h2{font-size:1.05rem;margin:22px 0 8px;color:#1d3a6e}.h{background:rgba(200,64,58,.2)}.m{background:rgba(226,163,32,.28)}ul{padding-left:20px}li{margin:4px 0}.note{font:13px system-ui,sans-serif;color:#5b6579;border-left:3px solid #2b7a57;padding:6px 12px;margin-top:22px}</style></head><body><main>
-<h1>Second <i>Read</i> report</h1><div class="meta">${esc(d.date)} · ${esc(d.source)}</div>
-<div><span class="score">${esc(d.score)}</span> / 100 AI likelihood · <b>${esc(d.verdict)}</b></div>
-${d.summary ? `<p>${esc(d.summary)}</p>` : ""}
-${d.signals.length ? `<h2>Writing signals</h2><ul>${d.signals.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-${flagged.length ? `<h2>Flagged sentences (${flagged.length})</h2><ul>${flagged.map(s => `<li><b>${s.r.likelihood}%</b> · ${esc(s.text)}${s.r.reason ? `<br><small>${esc(s.r.reason)}</small>` : ""}</li>`).join("")}</ul>` : ""}
-${d.plag ? `<h2>Plagiarism check · ${d.plag.originality}% original</h2>${d.plag.matches.length ? `<ul>${d.plag.matches.map(m => `<li>${m.type === "book" ? "Book" : "Website"} · ${m.match === "exact" ? "Exact" : "Close"} match: <a href="${esc(m.url)}">${esc(m.title || m.url)}</a>${m.note ? ` · ${esc(m.note)}` : ""}</li>`).join("")}</ul>` : "<p>No copied text found in the sentences checked.</p>"}` : ""}
-<h2>Full text</h2><div>${body}</div>
-<p class="note">A score is a signal, not proof. AI detectors make mistakes, most often on formal writing and on work by non-native English writers. Made with Second Read · second-read-three.vercel.app</p>
-</main></body></html>`;
-}
-$("dlReport").onclick = () => {
-  if (!current){ setStatus("Run a check first, then download the report.", true); return; }
-  const blob = new Blob([reportHtml(reportData())], { type: "text/html" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = "second-read-report-" + new Date().toISOString().slice(0, 10) + ".html";
-  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  setStatus("Report downloaded. Open it in any browser, or print it to PDF.");
-};
-$("copyReport").onclick = async () => {
-  if (!current){ setStatus("Run a check first.", true); return; }
-  const d = reportData();
-  const flagged = d.paras.flat().filter(s => s.r.likelihood >= 40);
-  const txt = `Second Read result: ${d.score}/100 AI likelihood (${d.verdict}).\n${d.summary}\n\nFlagged sentences:\n` + (flagged.map(s => `- [${s.r.likelihood}%] ${s.text}`).join("\n") || "- none") + `\n\n(A score is a signal, not proof.)`;
-  try { await navigator.clipboard.writeText(txt); setStatus("Summary copied."); } catch { setStatus("Copy was blocked by the browser.", true); }
-};
-
-// tooltip
-const tip = $("tip");
-function showTip(el, x, y){ tip.textContent = el.dataset.tip; tip.hidden = false;
-  const w = tip.offsetWidth, h = tip.offsetHeight;
-  tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, x - w/2)) + "px";
-  tip.style.top = (y - h - 12 < 8 ? y + 18 : y - h - 12) + "px"; }
-$("report").addEventListener("mousemove", e => { const s = e.target.closest(".s"); if (s) showTip(s, e.clientX, e.clientY); else tip.hidden = true; });
-$("report").addEventListener("mouseleave", () => tip.hidden = true);
-$("report").addEventListener("focusin", e => { const s = e.target.closest(".s"); if (s){ const r = s.getBoundingClientRect(); showTip(s, r.left + r.width/2, r.top); } });
-$("report").addEventListener("focusout", () => tip.hidden = true);
-$("report").addEventListener("click", e => { const s = e.target.closest(".s"); if (s) showTip(s, e.clientX, e.clientY); });
-
-updateCount();
-$("report").innerHTML = '<p style="color:var(--muted);font:15px/1.6 var(--body)">Paste your assignment above or upload a Word, PDF or text file, then choose a check. Your sentences will appear here, highlighted.</p>';
-
-
-/* ---------- Humanize the full text into a second box ---------- */
-async function humanizeFull(){
-  const text = input.value.trim();
-  if (words(text).length < 20){ setStatus("Paste at least a few sentences first.", true); return; }
-  ctl = new AbortController();
-  busy(true); setStatus("The AI is rewriting your full text… this can take up to a minute for long essays.");
-  try {
-    const d = await api("/api/humanize", { mode: "full", text }, ctl.signal);
-    $("output").value = d.text || ""; outSource = text; renderDiff();
-    $("outBox").hidden = false;
-    updateOutCount();
-    $("outBox").scrollIntoView({ behavior: "smooth", block: "start" });
-    setStatus(d.cut ? "Rewrite ready, but it was very long and may be cut off at the end. Try a shorter section for the rest." : "Your humanized text is ready in the box below.");
-  } catch (e) {
-    if (e && e.code === "cancelled") setStatus("Stopped.");
-    else setStatus(ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment.", true);
-  } finally { busy(false); }
-}
-function updateOutCount(){ const n = words($("output").value).length; $("outCount").textContent = `${n} word${n===1?"":"s"}`; }
-$("output").addEventListener("input", updateOutCount);
-$("fullBtn").onclick = humanizeFull;
-$("outCopy").onclick = async () => {
-  try { await navigator.clipboard.writeText($("output").value); setStatus("Humanized text copied."); }
-  catch { $("output").focus(); $("output").select(); setStatus("Copy was blocked here, so the text is selected. Press Ctrl+C / Cmd+C."); }
-};
-$("outUse").onclick = () => { input.value = $("output").value; updateCount(); $("inLabel").textContent = "Your text · humanized"; input.scrollIntoView({behavior:"smooth", block:"center"}); setStatus("The humanized version is in the main box. Tap Analyze with AI to check it."); };
-function xmlEsc(t){ return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-$("outWord").onclick = async () => {
-  try {
-    if (!window.JSZip) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
-    const paras = $("output").value.replace(/\r\n/g, "\n").split(/\n/);
-    const body = paras.map(p => p.trim() ? `<w:p><w:r><w:t xml:space="preserve">${xmlEsc(p)}</w:t></w:r></w:p>` : `<w:p/>`).join("");
-    const zip = new JSZip();
-    zip.file("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
-    zip.file("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-    zip.file("word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`);
-    const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "humanized-text.docx"; document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    setStatus("Downloaded humanized-text.docx.");
-  } catch { setStatus("Couldn't make the Word file. Use Copy instead.", true); }
-};
-
-
-/* ---------- Word-level diff for the output box ---------- */
-function diffWords(a, b){
-  const A = a.split(/(\s+)/), B = b.split(/(\s+)/);
-  if (A.length * B.length > 9e6) return null;
-  const n = A.length, m = B.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
-  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
-  const out = []; let i = 0, j = 0;
-  while (i < n && j < m){ if (A[i] === B[j]){ out.push([0, A[i]]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) out.push([-1, A[i++]]); else out.push([1, B[j++]]); }
-  while (i < n) out.push([-1, A[i++]]); while (j < m) out.push([1, B[j++]]);
-  return out;
-}
-let outSource = "";
-function renderDiff(){
-  const box = $("outDiff"); box.textContent = "";
-  const d = outSource ? diffWords(outSource, $("output").value) : null;
-  $("outDiffWrap").hidden = !d;
-  if (!d) return;
-  let changed = 0;
-  d.forEach(([t, w]) => {
-    if (t === 0 || !w.trim()){ if (t !== -1) box.append(document.createTextNode(w)); return; }
-    changed++;
-    const el = document.createElement(t === 1 ? "mark" : "del"); if (t === 1) el.className = "add"; el.textContent = w; box.append(el);
-  });
-  $("outDiffNote").textContent = changed ? "Green = new words · crossed out = removed" : "No changes.";
-}
-$("output").addEventListener("input", () => { clearTimeout(renderDiff.t); renderDiff.t = setTimeout(renderDiff, 400); });
-
-/* ---------- Writing assistant ---------- */
-document.querySelector("#tools .tabs").addEventListener("click", e => {
-  const b = e.target.closest("button[data-tab]"); if (!b) return;
-  document.querySelectorAll("#tools .tabs button").forEach(x => x.setAttribute("aria-selected", x === b ? "true" : "false"));
-  ["tGrammar", "tRewrite", "tCite"].forEach(id => $(id).hidden = id !== b.dataset.tab);
-});
-let gState = null;
-function tclass(t){ return "t-" + String(t).replace(/\s+/g, "-"); }
-function renderGrammar(){
-  const box = $("gOut"); box.textContent = "";
-  if (!gState) return;
-  const d = gState.data, text = input.value;
-  const sc = document.createElement("div"); sc.className = "scores";
-  const open = d.issues.filter(x => !x.done);
-  [[d.correctness, "Correctness"], [d.clarity, "Clarity"], [open.length, "Suggestions left"]].forEach(([v, l]) => { const c = document.createElement("div"); const b = document.createElement("b"); b.textContent = v + (l === "Suggestions left" ? "" : "/100"); const sp = document.createElement("span"); sp.textContent = l; c.append(b, sp); sc.append(c); });
-  box.append(sc);
-  if (d.tone.length){ const t = document.createElement("div"); t.append(document.createTextNode("Tone: ")); d.tone.forEach(x => { const s = document.createElement("span"); s.className = "tone"; s.textContent = x; t.append(s); }); box.append(t); }
-  if (d.summary){ const p = document.createElement("p"); p.className = "hint"; p.textContent = d.summary; box.append(p); }
-  // Preview with underlines
-  const marks = [];
-  open.forEach(x => { const i = text.indexOf(x.original); if (i >= 0 && !marks.some(m => i < m.e && i + x.original.length > m.s)) marks.push({ s: i, e: i + x.original.length, x }); });
-  marks.sort((a, b) => a.s - b.s);
-  const pv = document.createElement("div"); pv.className = "gprev"; let pos = 0;
-  marks.forEach(m => { pv.append(document.createTextNode(text.slice(pos, m.s))); const u = document.createElement("u"); u.className = tclass(m.x.type); u.textContent = text.slice(m.s, m.e); u.title = m.x.suggestion; u.onclick = () => { const li = document.getElementById("gi" + d.issues.indexOf(m.x)); if (li) li.scrollIntoView({ behavior: "smooth", block: "center" }); }; pv.append(u); pos = m.e; });
-  pv.append(document.createTextNode(text.slice(pos)));
-  // Corrected version with every remaining fix applied, changes highlighted
-  const fx = document.createElement("div"); fx.className = "gprev fixed"; pos = 0; let fixedText = "";
-  marks.forEach(m => { const before = text.slice(pos, m.s); fx.append(document.createTextNode(before)); fixedText += before; if (m.x.suggestion){ const mk = document.createElement("mark"); mk.className = "add"; mk.textContent = m.x.suggestion; mk.title = "Was: " + m.x.original; fx.append(mk); } fixedText += m.x.suggestion; pos = m.e; });
-  fx.append(document.createTextNode(text.slice(pos))); fixedText += text.slice(pos);
-  if (text.trim()){
-    const cmp = document.createElement("div"); cmp.className = "compare";
-    const c1 = document.createElement("div"); const l1 = document.createElement("span"); l1.className = "label"; l1.textContent = "Your text · mistakes underlined"; c1.append(l1, pv);
-    const c2 = document.createElement("div"); const l2 = document.createElement("span"); l2.className = "label"; l2.textContent = "Corrected text · changes highlighted"; c2.append(l2, fx);
-    if (marks.length){
-      const a = document.createElement("div"); a.className = "actions"; a.style.marginTop = "8px";
-      const cp = document.createElement("button"); cp.textContent = "Copy corrected text"; cp.onclick = async () => { try { await navigator.clipboard.writeText(fixedText); cp.textContent = "Copied"; } catch { cp.textContent = "Copy blocked"; } };
-      const use = document.createElement("button"); use.className = "primary"; use.textContent = "Use corrected text"; use.onclick = () => $("gAll").click();
-      a.append(use, cp); c2.append(a);
-    }
-    cmp.append(c1, c2); box.append(cmp);
-  }
-  if (!open.length){ const p = document.createElement("p"); p.className = "summary"; p.style.color = "var(--good)"; p.textContent = d.issues.length ? "All suggestions handled. Nice work!" : "No mistakes found. Nice work!"; box.append(p); $("gAll").hidden = true; return; }
-  const ul = document.createElement("ul"); ul.className = "issues";
-  open.forEach(x => {
-    const li = document.createElement("li"); li.className = tclass(x.type); li.id = "gi" + d.issues.indexOf(x);
-    const ty = document.createElement("div"); ty.className = "ty"; ty.textContent = x.type;
-    const fx = document.createElement("div"); fx.className = "fix"; const del = document.createElement("del"); del.textContent = x.original; const ins = document.createElement("ins"); ins.textContent = x.suggestion || "(remove)"; fx.append(del, document.createTextNode(" → "), ins);
-    const ex = document.createElement("div"); ex.className = "ex"; ex.textContent = x.explanation;
-    const act = document.createElement("div"); act.className = "act";
-    const ok = document.createElement("button"); ok.className = "primary"; ok.textContent = "Accept"; ok.onclick = () => { applyFix(x); renderGrammar(); };
-    const no = document.createElement("button"); no.textContent = "Dismiss"; no.onclick = () => { x.done = true; renderGrammar(); };
-    act.append(ok, no); li.append(ty, fx, ex, act); ul.append(li);
-  });
-  box.append(ul);
-  $("gAll").hidden = open.length < 2;
-}
-function applyFix(x){
-  const t = input.value, i = t.indexOf(x.original);
-  if (i >= 0){ input.value = t.slice(0, i) + x.suggestion + t.slice(i + x.original.length); updateCount(); }
-  x.done = true;
-}
-$("gAll").onclick = () => { if (!gState) return; gState.data.issues.filter(x => !x.done).forEach(applyFix); renderGrammar(); setStatus("All fixes applied to your text."); };
-$("gRun").onclick = async () => {
-  const text = input.value;
-  if (words(text).length < 3){ setStatus("Paste or type some text first.", true); return; }
-  ctl = new AbortController(); busy(true); setStatus("Checking grammar, clarity and tone…");
-  try {
-    const d = await api("/api/write", { mode: "review", text }, ctl.signal);
-    gState = { data: d }; renderGrammar();
-    setStatus(d.issues.length ? `Found ${d.issues.length} suggestion${d.issues.length === 1 ? "" : "s"}. Accept the ones you want.` : "No mistakes found.");
-  } catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : (ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment."), !(e && e.code === "cancelled")); }
-  finally { busy(false); }
-};
-const RW_LABEL = { formal: "Formal", academic: "Academic", simpler: "Simpler", shorter: "Shorter", longer: "Longer", confident: "Confident", friendly: "Friendly", fluent: "Fluent" };
-$("rwChips").addEventListener("click", e => { const b = e.target.closest("button[data-style]"); if (b) rewriteRun(b.dataset.style); });
-async function rewriteRun(style){
-  const sel = input.value.slice(input.selectionStart, input.selectionEnd);
-  const text = (sel.trim().length > 20 ? sel : input.value).trim();
-  if (words(text).length < 3){ setStatus("Paste or type some text first.", true); return; }
-  ctl = new AbortController(); busy(true); setStatus(`Rewriting ${sel.trim().length > 20 ? "your selection" : "your text"} (${RW_LABEL[style]})…`);
-  try {
-    const d = await api("/api/write", { mode: "rewrite", style, text }, ctl.signal);
-    $("output").value = d.text || ""; outSource = text; renderDiff(); $("outLabel").textContent = `Rewritten text · ${RW_LABEL[style]}`;
-    $("outBox").hidden = false; updateOutCount(); $("outBox").scrollIntoView({ behavior: "smooth", block: "start" });
-    setStatus(d.cut ? "Rewrite ready, but it may be cut off at the end. Try a shorter section." : "Your rewritten text is ready in the box below.");
-  } catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : (ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment."), !(e && e.code === "cancelled")); }
-  finally { busy(false); }
-}
-// Make the humanize box label right when used for humanizing
-const _hf = humanizeFull; humanizeFull = async function(){ $("outLabel").textContent = "Humanized text"; return _hf(); };
-$("fullBtn").onclick = humanizeFull;
-
-function italicNodes(s){ const f = document.createDocumentFragment(); String(s).split(/(\*[^*]+\*)/).forEach(p => { if (/^\*[^*]+\*$/.test(p)){ const i = document.createElement("i"); i.textContent = p.slice(1, -1); f.append(i); } else f.append(document.createTextNode(p)); }); return f; }
-function plainCite(s){ return String(s).replace(/\*([^*]+)\*/g, "$1"); }
-async function copyRich(s){
-  const html = String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\*([^*]+)\*/g, "<i>$1</i>");
-  try { await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([plainCite(s)], { type: "text/plain" }) })]); return true; }
-  catch { try { await navigator.clipboard.writeText(plainCite(s)); return true; } catch { return false; } }
-}
-let refs = []; try { refs = JSON.parse(localStorage.getItem("sr_refs") || "[]"); } catch {}
-function saveRefs(){ try { localStorage.setItem("sr_refs", JSON.stringify(refs)); } catch {} }
-function renderRefs(){
-  const st = $("refStyle").value, ol = $("refList"); ol.textContent = "";
-  $("refBox").hidden = !refs.length;
-  refs.slice().sort((a, b) => plainCite(a[st]).localeCompare(plainCite(b[st]))).forEach(r => { const li = document.createElement("li"); li.className = "t"; li.style.cssText = "padding-left:2em;text-indent:-2em;list-style:none"; li.append(italicNodes(r[st])); ol.append(li); });
-}
-$("refStyle").onchange = renderRefs;
-$("refClear").onclick = () => { refs = []; saveRefs(); renderRefs(); };
-$("refCopy").onclick = async () => { const st = $("refStyle").value; const all = refs.slice().sort((a, b) => plainCite(a[st]).localeCompare(plainCite(b[st]))).map(r => r[st]).join("\n"); setStatus(await copyRich(all) ? "Reference list copied." : "Copy was blocked here."); };
-$("citeRun").onclick = async () => {
-  const q = $("citeQ").value.trim(); if (!q){ setStatus("Paste a link, DOI, ISBN or book title first.", true); return; }
-  ctl = new AbortController(); busy(true); setStatus("Looking up the source…");
-  try {
-    const d = await api("/api/write", { mode: "cite", query: q }, ctl.signal);
-    const out = $("citeOut"); out.textContent = "";
-    [["APA", d.apa], ["MLA", d.mla], ["Chicago", d.chicago]].forEach(([l, s]) => {
-      const c = document.createElement("div"); c.className = "c";
-      const b = document.createElement("b"); b.textContent = l;
-      const t = document.createElement("div"); t.className = "t"; t.append(italicNodes(s));
-      const btn = document.createElement("button"); btn.textContent = "Copy"; btn.onclick = async () => { btn.textContent = (await copyRich(s)) ? "Copied" : "Blocked"; };
-      c.append(b, t, btn); out.append(c);
-    });
-    if (d.intext && (d.intext.apa || d.intext.mla)){ const p = document.createElement("p"); p.className = "hint"; p.textContent = `In-text: APA ${d.intext.apa || ""}${d.intext.mla ? " · MLA " + d.intext.mla : ""}`; out.append(p); }
-    refs.push({ apa: d.apa, mla: d.mla, chicago: d.chicago }); saveRefs(); renderRefs();
-    setStatus("Citation ready and added to your reference list. Check the details against the source.");
-  } catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : (ERR[e && e.code] || "Couldn't make that citation. Try again."), !(e && e.code === "cancelled")); }
-  finally { busy(false); }
-};
-$("citeQ").addEventListener("keydown", e => { if (e.key === "Enter") $("citeRun").click(); });
-renderRefs();
 
 /* ---------- Google sign-in ---------- */
 const auth = { clientId: null, token: null, user: null, pending: null, ready: false };
@@ -994,34 +421,26 @@ function renderAcct(){
   const need = !!auth.clientId;
   $("acct").hidden = !(need && signedIn());
   $("signInTop").hidden = !(need && !signedIn());
-  if (auth.user){ $("acctName").textContent = auth.user.given_name || auth.user.name || auth.user.email || ""; if (auth.user.picture) $("acctPic").src = auth.user.picture; $("acctPic").hidden = !auth.user.picture; }
+  if (auth.user){ $("acctName").textContent = auth.user.given_name || auth.user.name || ""; if (auth.user.picture) $("acctPic").src = auth.user.picture; $("acctPic").hidden = !auth.user.picture; }
 }
 function openGate(){
   if (!auth.clientId) return;
   $("gate").hidden = false;
   if (auth.ready && !$("gbtn").childElementCount) google.accounts.id.renderButton($("gbtn"), { theme: "filled_blue", size: "large", text: "continue_with", shape: "pill", width: 280 });
 }
-function closeGate(){ $("gate").hidden = true; }
-$("gateCancel").onclick = () => { auth.pending = null; closeGate(); };
-$("signInTop").onclick = () => openGate();
+$("gateCancel").onclick = () => { auth.pending = null; $("gate").hidden = true; };
+$("signInTop").onclick = openGate;
 $("signOut").onclick = () => { setToken(null); try { google.accounts.id.disableAutoSelect(); } catch {} setStatus("Signed out."); };
 function onCredential(resp){
   setToken(resp && resp.credential);
-  if (!signedIn()) { setStatus("Sign-in didn't finish. Please try again.", true); return; }
-  closeGate();
-  setStatus(`Signed in as ${auth.user.name || auth.user.email}.`);
-  const next = auth.pending; auth.pending = null;
-  if (next) next();
+  if (!signedIn()){ setStatus("Sign-in didn't finish. Please try again.", true); return; }
+  $("gate").hidden = true; setStatus(`Signed in as ${auth.user.name || auth.user.email}.`);
+  const next = auth.pending; auth.pending = null; if (next) next();
 }
 function requireLogin(fn){
-  return function(...args){
-    if (!auth.clientId || signedIn()) return fn.apply(this, args);
-    auth.pending = () => fn.apply(this, args);
-    openGate();
-  };
+  return function(...args){ if (!auth.clientId || signedIn()) return fn.apply(this, args); auth.pending = () => fn.apply(this, args); openGate(); };
 }
-["analyze", "quick", "rewrite", "plagBtn", "fullBtn", "gRun", "gAll", "citeRun"].forEach(id => { const f = $(id).onclick; if (f) $(id).onclick = requireLogin(f); });
-rewriteRun = requireLogin(rewriteRun);
+$("check").onclick = requireLogin(check);
 (async function initAuth(){
   try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
   if (!auth.clientId) return;
@@ -1033,9 +452,9 @@ rewriteRun = requireLogin(rewriteRun);
     auth.ready = true;
     if (!$("gate").hidden) openGate();
     if (!signedIn()) google.accounts.id.prompt();
-  } catch { setStatus("Google sign-in couldn't load. Check your connection and refresh the page.", true); }
+  } catch { setStatus("Google sign-in couldn't load. Refresh the page.", true); }
 })();
+updateCount();
 </script>
-
 </body>
 </html>
