@@ -104,11 +104,16 @@ async function original(body, res) {
   if (text.length > MAX) return res.status(413).json({ code: "too_long" });
   const flagged = (Array.isArray(body.flagged) ? body.flagged : []).slice(0, 60)
     .map(f => ({ text: String(f.text || "").slice(0, 1000), source: String(f.source || "").slice(0, 200) })).filter(f => f.text);
+  const aiFlagged = (Array.isArray(body.aiFlagged) ? body.aiFlagged : []).slice(0, 80).map(t => String(t || "").slice(0, 1000)).filter(Boolean);
   const prompt = `A university student wants their assignment to be written in their own words. Rewrite the WHOLE text below.
 
 ${flagged.length ? `These sentences closely match published sources and must be completely re-expressed in fresh wording: change the sentence structure and the vocabulary, not just a few words, while keeping the same meaning. Right after each one, add a citation reminder in square brackets naming the source, like [cite: ${flagged[0].source || "source"}], because the idea still came from that source.
 FLAGGED SENTENCES:
 ${flagged.map((f, i) => `${i + 1}. "${f.text}"${f.source ? ` (source: ${f.source})` : ""}`).join("\n")}
+
+` : ""}${aiFlagged.length ? `These sentences read as AI-generated. Rewrite them so they sound like a real student wrote them: plain everyday words, varied sentence length (mix short and longer sentences), a direct personal point of view where it fits, no stock transitions (moreover, furthermore, additionally, in conclusion, it is important to note) and no buzzwords (delve, pivotal, crucial, multifaceted, landscape, tapestry, foster, leverage, navigate, realm, showcase, seamless). Keep the meaning. Where a concrete detail from the student would make it stronger, add a short placeholder like [add your own example] instead of inventing one.
+AI-SOUNDING SENTENCES:
+${aiFlagged.map((t, i) => `${i + 1}. "${t}"`).join("\n")}
 
 ` : ""}For all the other sentences: keep them close to the original, but fix any spelling, grammar and punctuation mistakes and make clumsy wording read naturally.
 
