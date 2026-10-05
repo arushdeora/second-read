@@ -22,6 +22,7 @@ export default async function handler(req, res) {
     if (mode === "review") return await review(body, res);
     if (mode === "rewrite") return await rewrite(body, res);
     if (mode === "cite") return await cite(body, res);
+    if (mode === "original") return await original(body, res);
     return res.status(400).json({ code: "bad_mode" });
   } catch (e) { fail(res, e); }
 }
@@ -91,6 +92,38 @@ TEXT:
 ${text}
 """`;
   const out = await askClaudeText(prompt, Math.min(16000, Math.ceil(text.length / (style === "longer" ? 1.6 : 2.5)) + 800));
+  if (!out.text) return res.status(502).json({ code: "upstream_error" });
+  res.status(200).json({ text: out.text.replace(/^"""\s*|\s*"""$/g, ""), cut: out.cut });
+}
+
+// Rewrite the whole text so passages that match published sources are put into the
+// student's own words (and grammar is fixed), with a reminder to cite the idea.
+async function original(body, res) {
+  const text = String(body.text || "").replace(/\r\n/g, "\n").trim();
+  if (!text) return res.status(400).json({ code: "empty" });
+  if (text.length > MAX) return res.status(413).json({ code: "too_long" });
+  const flagged = (Array.isArray(body.flagged) ? body.flagged : []).slice(0, 60)
+    .map(f => ({ text: String(f.text || "").slice(0, 1000), source: String(f.source || "").slice(0, 200) })).filter(f => f.text);
+  const prompt = `A university student wants their assignment to be written in their own words. Rewrite the WHOLE text below.
+
+${flagged.length ? `These sentences closely match published sources and must be completely re-expressed in fresh wording: change the sentence structure and the vocabulary, not just a few words, while keeping the same meaning. Right after each one, add a citation reminder in square brackets naming the source, like [cite: ${flagged[0].source || "source"}], because the idea still came from that source.
+FLAGGED SENTENCES:
+${flagged.map((f, i) => `${i + 1}. "${f.text}"${f.source ? ` (source: ${f.source})` : ""}`).join("\n")}
+
+` : ""}For all the other sentences: keep them close to the original, but fix any spelling, grammar and punctuation mistakes and make clumsy wording read naturally.
+
+Rules:
+- Keep the same meaning, argument, order and paragraph breaks.
+- Keep direct quotations that are in quotation marks, and keep existing citations, names, numbers and dates exactly.
+- Do not invent facts, statistics or sources.
+- Write like a real student: clear, plain, varied sentences.
+Reply with ONLY the rewritten text, no title or notes.
+
+TEXT:
+"""
+${text}
+"""`;
+  const out = await askClaudeText(prompt, Math.min(16000, Math.ceil(text.length / 2.2) + 1000));
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
   res.status(200).json({ text: out.text.replace(/^"""\s*|\s*"""$/g, ""), cut: out.cut });
 }
