@@ -112,6 +112,13 @@ ul.sig li{display:flex;gap:10px;align-items:baseline;font-size:.9rem}
 .gprev u{text-decoration:none;border-bottom:2px solid var(--bad);cursor:pointer}
 .gprev u.t-clarity,.gprev u.t-wordiness,.gprev u.t-word-choice{border-bottom-color:#2f6fd6}
 .gprev u.on{background:rgba(179,54,47,.12)}
+.compare{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:10px 0}
+@media (max-width:760px){.compare{grid-template-columns:1fr}}
+.compare .gprev{margin:4px 0 0;max-height:380px}
+.compare .fixed{border-color:#bcd9c8;background:#f3f8f5}
+mark.add{background:rgba(43,122,87,.18);color:var(--ink);border-radius:3px;padding:0 1px;font-weight:600}
+.diff{font:15px/1.8 var(--body);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;white-space:pre-wrap;max-height:320px;overflow:auto;margin-top:8px}
+.diff del{color:var(--bad);text-decoration:line-through;opacity:.75;margin-right:4px}
 .issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .issues li{border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:6px;padding:10px 12px;background:var(--paper)}
 .issues li.t-clarity,.issues li.t-wordiness,.issues li.t-word-choice{border-left-color:#2f6fd6}
@@ -203,6 +210,10 @@ details p{margin:8px 0 0}
           <button class="primary" id="outCopy">Copy</button>
           <button id="outWord">Download Word</button>
           <button id="outUse">Check this version</button>
+        </div>
+        <div id="outDiffWrap" hidden style="margin-top:14px">
+          <div class="row"><span class="label">What changed</span><span class="meta" id="outDiffNote"></span></div>
+          <div class="diff" id="outDiff"></div>
         </div>
       </div>
       <div class="tools" id="tools">
@@ -775,7 +786,7 @@ async function humanizeFull(){
   busy(true); setStatus("The AI is rewriting your full text… this can take up to a minute for long essays.");
   try {
     const d = await api("/api/humanize", { mode: "full", text }, ctl.signal);
-    $("output").value = d.text || "";
+    $("output").value = d.text || ""; outSource = text; renderDiff();
     $("outBox").hidden = false;
     updateOutCount();
     $("outBox").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -811,6 +822,33 @@ $("outWord").onclick = async () => {
 };
 
 
+/* ---------- Word-level diff for the output box ---------- */
+function diffWords(a, b){
+  const A = a.split(/(\s+)/), B = b.split(/(\s+)/);
+  if (A.length * B.length > 9e6) return null;
+  const n = A.length, m = B.length, L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m){ if (A[i] === B[j]){ out.push([0, A[i]]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) out.push([-1, A[i++]]); else out.push([1, B[j++]]); }
+  while (i < n) out.push([-1, A[i++]]); while (j < m) out.push([1, B[j++]]);
+  return out;
+}
+let outSource = "";
+function renderDiff(){
+  const box = $("outDiff"); box.textContent = "";
+  const d = outSource ? diffWords(outSource, $("output").value) : null;
+  $("outDiffWrap").hidden = !d;
+  if (!d) return;
+  let changed = 0;
+  d.forEach(([t, w]) => {
+    if (t === 0 || !w.trim()){ if (t !== -1) box.append(document.createTextNode(w)); return; }
+    changed++;
+    const el = document.createElement(t === 1 ? "mark" : "del"); if (t === 1) el.className = "add"; el.textContent = w; box.append(el);
+  });
+  $("outDiffNote").textContent = changed ? "Green = new words · crossed out = removed" : "No changes.";
+}
+$("output").addEventListener("input", () => { clearTimeout(renderDiff.t); renderDiff.t = setTimeout(renderDiff, 400); });
+
 /* ---------- Writing assistant ---------- */
 document.querySelector("#tools .tabs").addEventListener("click", e => {
   const b = e.target.closest("button[data-tab]"); if (!b) return;
@@ -836,7 +874,22 @@ function renderGrammar(){
   const pv = document.createElement("div"); pv.className = "gprev"; let pos = 0;
   marks.forEach(m => { pv.append(document.createTextNode(text.slice(pos, m.s))); const u = document.createElement("u"); u.className = tclass(m.x.type); u.textContent = text.slice(m.s, m.e); u.title = m.x.suggestion; u.onclick = () => { const li = document.getElementById("gi" + d.issues.indexOf(m.x)); if (li) li.scrollIntoView({ behavior: "smooth", block: "center" }); }; pv.append(u); pos = m.e; });
   pv.append(document.createTextNode(text.slice(pos)));
-  if (text.trim()) box.append(pv);
+  // Corrected version with every remaining fix applied, changes highlighted
+  const fx = document.createElement("div"); fx.className = "gprev fixed"; pos = 0; let fixedText = "";
+  marks.forEach(m => { const before = text.slice(pos, m.s); fx.append(document.createTextNode(before)); fixedText += before; if (m.x.suggestion){ const mk = document.createElement("mark"); mk.className = "add"; mk.textContent = m.x.suggestion; mk.title = "Was: " + m.x.original; fx.append(mk); } fixedText += m.x.suggestion; pos = m.e; });
+  fx.append(document.createTextNode(text.slice(pos))); fixedText += text.slice(pos);
+  if (text.trim()){
+    const cmp = document.createElement("div"); cmp.className = "compare";
+    const c1 = document.createElement("div"); const l1 = document.createElement("span"); l1.className = "label"; l1.textContent = "Your text · mistakes underlined"; c1.append(l1, pv);
+    const c2 = document.createElement("div"); const l2 = document.createElement("span"); l2.className = "label"; l2.textContent = "Corrected text · changes highlighted"; c2.append(l2, fx);
+    if (marks.length){
+      const a = document.createElement("div"); a.className = "actions"; a.style.marginTop = "8px";
+      const cp = document.createElement("button"); cp.textContent = "Copy corrected text"; cp.onclick = async () => { try { await navigator.clipboard.writeText(fixedText); cp.textContent = "Copied"; } catch { cp.textContent = "Copy blocked"; } };
+      const use = document.createElement("button"); use.className = "primary"; use.textContent = "Use corrected text"; use.onclick = () => $("gAll").click();
+      a.append(use, cp); c2.append(a);
+    }
+    cmp.append(c1, c2); box.append(cmp);
+  }
   if (!open.length){ const p = document.createElement("p"); p.className = "summary"; p.style.color = "var(--good)"; p.textContent = d.issues.length ? "All suggestions handled. Nice work!" : "No mistakes found. Nice work!"; box.append(p); $("gAll").hidden = true; return; }
   const ul = document.createElement("ul"); ul.className = "issues";
   open.forEach(x => {
@@ -878,7 +931,7 @@ async function rewriteRun(style){
   ctl = new AbortController(); busy(true); setStatus(`Rewriting ${sel.trim().length > 20 ? "your selection" : "your text"} (${RW_LABEL[style]})…`);
   try {
     const d = await api("/api/write", { mode: "rewrite", style, text }, ctl.signal);
-    $("output").value = d.text || ""; $("outLabel").textContent = `Rewritten text · ${RW_LABEL[style]}`;
+    $("output").value = d.text || ""; outSource = text; renderDiff(); $("outLabel").textContent = `Rewritten text · ${RW_LABEL[style]}`;
     $("outBox").hidden = false; updateOutCount(); $("outBox").scrollIntoView({ behavior: "smooth", block: "start" });
     setStatus(d.cut ? "Rewrite ready, but it may be cut off at the end. Try a shorter section." : "Your rewritten text is ready in the box below.");
   } catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : (ERR[e && e.code] || "Couldn't reach the AI. Try again in a moment."), !(e && e.code === "cancelled")); }
