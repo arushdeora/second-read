@@ -195,7 +195,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <button data-tool="human"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4-5.5 7-5.5s5.5 1.5 7 5.5"/></svg>Humanizer</button>
       <button data-tool="cite"><svg viewBox="0 0 24 24"><path d="M7 10c-2 0-3 1.3-3 3v3h4v-4H6c0-1 .5-2 2-2zM16 10c-2 0-3 1.3-3 3v3h4v-4h-2c0-1 .5-2 2-2z"/></svg>Citation Generator</button>
     </nav>
-    <div class="foot">Free daily credits.<br><a href="#" id="footPro" hidden>Pro: unlimited, $5/month<br></a><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
+    <div class="foot">15-minute free trial.<br><a href="#" id="footPro" hidden>Full access: $5/month<br></a><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
   </aside>
 
   <main>
@@ -245,7 +245,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
         <div><b>Citation Generator</b>APA, MLA and Chicago references from a link, DOI, ISBN or book title.</div>
       </div>
       <h2>Questions</h2>
-      <details><summary>Is it free?</summary><p>Yes. Every student gets free credits each day after signing in with Google. Most tools use 1 credit and a plagiarism check uses 2. If you need more, Second Read Pro gives unlimited use for $5 USD a month through PayPal, and you can cancel any time.</p></details>
+      <details><summary>Is it free?</summary><p>Every student gets a 15-minute free trial with every tool, starting from their first check. After that, full access costs $5 USD a month. You can pay with PayPal or any debit or credit card, and you can cancel any time.</p></details>
       <details><summary>How do I cancel Pro?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel Second Read Pro. You keep Pro until the end of the month you already paid for.</p></details>
       <details><summary>How does the plagiarism check work?</summary><p>It picks your most distinctive sentences and searches the web and book sources such as Google Books, Project Gutenberg and the Internet Archive for the same or nearly the same wording.</p></details>
       <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Treat the percentage as a guide for revising, not proof of who wrote something.</p></details>
@@ -266,16 +266,16 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 
 <div class="gate" id="pro" hidden role="dialog" aria-modal="true" aria-labelledby="proH">
   <div class="box pro-box">
-    <h2 id="proH">Second Read Pro</h2>
+    <h2 id="proH">Get full access</h2>
     <div class="price">$<span id="proPrice">5</span> <small>USD / month</small></div>
     <p class="why" id="proWhy" hidden></p>
     <ul>
-      <li>Unlimited checks with every tool (fair use)</li>
+      <li>Unlimited use of every tool (fair use)</li>
       <li>Plagiarism, AI detection, humanizing, paraphrasing and citations</li>
-      <li>Cancel any time in PayPal. You keep Pro until the month ends.</li>
+      <li>Cancel any time in PayPal. You keep access until the month ends.</li>
     </ul>
     <div id="proBody"><div id="ppbtn"></div></div>
-    <p class="fine">Free plan: <span id="proFree">15</span> credits a day. Payments are handled by PayPal, so we never see your card details.</p>
+    <p class="fine"><b>Pay any way you like:</b> PayPal, or any debit or credit card (Visa, Mastercard, American Express, Discover). Payments are processed securely by PayPal, so we never see your card details.</p>
     <button class="ghost" id="proClose" type="button">Not now</button>
   </div>
 </div>
@@ -295,7 +295,7 @@ const ERR = {
   rate_limited: "Too many requests in a short time. Wait a minute, then try again.",
   too_long: "That text is too long. Use one section at a time (about 3,000 words max).",
   need_login: "Please sign in with Google to continue. It's free to start.",
-  need_pro: "You've used today's free credits. Upgrade to Pro for unlimited use, or come back tomorrow.",
+  need_pro: "Your free trial has ended. Get full access for $5 USD a month to keep using Second Read.",
   daily_cap: "You've reached today's fair-use limit. It resets at midnight (UTC).",
   billing_error: "Payments are having a problem right now. Please try again later.",
   not_active: "PayPal hasn't confirmed that subscription yet. Wait a moment and refresh the page.",
@@ -314,8 +314,8 @@ async function api(path, body, signal){
     res = await fetch(path, { method: "POST", headers, body: JSON.stringify(body), signal });
   } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error" }; }
   const data = await res.json().catch(() => ({}));
-  if (res.headers.get("x-sr-limit")){ bill.enabled = true; bill.pro = res.headers.get("x-sr-pro") === "1"; bill.used = +res.headers.get("x-sr-used"); bill.limit = +res.headers.get("x-sr-limit"); renderPlan(); }
-  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "need_pro") openPro(ERR.need_pro); throw { code: data.code || "upstream_error" }; }
+  if (res.headers.get("x-sr-pro")){ bill.enabled = true; bill.pro = res.headers.get("x-sr-pro") === "1"; const te = +res.headers.get("x-sr-trial-ends"); if (te) bill.trialEnds = te - bill.skew; renderPlan(); }
+  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "need_pro"){ bill.popped = true; if (bill.trialEnds == null || bill.trialEnds > Date.now()) bill.trialEnds = Date.now() - 1; renderPlan(); openPro(TRIAL_OVER); } throw { code: data.code || "upstream_error" }; }
   return data;
 }
 function sentences(text){
@@ -707,20 +707,31 @@ $("delMine").onclick = requireLogin(async e => {
   catch (err) { setStatus(errMsg(err), true); }
 });
 
-/* ---------- Free credits & Pro ($5/month via PayPal) ---------- */
-const bill = { enabled: false, pro: false, used: 0, limit: 0, cfg: null, ppLoaded: false };
+/* ---------- 15-minute free trial, then $5/month via PayPal ---------- */
+const bill = { enabled: false, pro: false, trialEnds: null, skew: 0, cfg: null, ppLoaded: false, popped: false };
 function subId(){ try { return localStorage.getItem("sr_subid") || ""; } catch { return ""; } }
+const TRIAL_OVER = "Your 15-minute free trial is over. Get full access to every tool for $5 USD a month.";
 function renderPlan(){
   const p = $("planPill"); $("footPro").hidden = !bill.enabled || bill.pro;
   if (!bill.enabled){ p.hidden = true; return; }
-  p.hidden = false; const left = Math.max(0, bill.limit - bill.used);
-  p.className = "plan" + (bill.pro ? " pro" : left <= 3 ? " low" : "");
-  p.textContent = bill.pro ? "Pro ✓" : `Free · ${left} credit${left === 1 ? "" : "s"} left`;
-  p.title = bill.pro ? "Manage your subscription in PayPal" : "Upgrade to Pro for unlimited use";
+  p.hidden = false;
+  const left = bill.trialEnds ? bill.trialEnds - Date.now() : null;
+  if (bill.pro){ p.className = "plan pro"; p.textContent = "Pro ✓"; p.title = "Manage your subscription in PayPal"; return; }
+  if (left == null){ p.className = "plan"; p.textContent = `${(bill.cfg && bill.cfg.trialMinutes) || 15}-min free trial`; }
+  else if (left > 0){ const m = Math.ceil(left / 60e3); p.className = "plan" + (m <= 3 ? " low" : ""); p.textContent = `Free trial · ${m} min left`; }
+  else { p.className = "plan low"; p.textContent = "Trial ended · Get access"; }
+  p.title = "Get full access for $5/month";
+  // Pop up the payment box the moment the trial runs out (once per visit).
+  if (left != null && left <= 0 && !bill.popped && $("pro").hidden){ bill.popped = true; openPro(TRIAL_OVER); }
 }
+setInterval(() => { if (bill.enabled && !bill.pro) renderPlan(); }, 10000);
 async function refreshBilling(){
   if (!signedIn()) return;
-  try { const s = await api("/api/billing", { action: "status" }); bill.cfg = s; bill.enabled = !!s.enabled; if (s.enabled){ bill.pro = s.pro; bill.used = s.used; bill.limit = s.limit; } renderPlan(); } catch {}
+  try {
+    const s = await api("/api/billing", { action: "status" }); bill.cfg = s; bill.enabled = !!s.enabled;
+    if (s.enabled){ bill.skew = (s.now || Date.now()) - Date.now(); bill.pro = s.pro; bill.trialEnds = s.trialEndsAt ? s.trialEndsAt - bill.skew : null; }
+    renderPlan();
+  } catch {}
 }
 async function openPro(why){
   if (!signedIn()){ auth.pending = () => openPro(why); openGate(); return; }
@@ -728,7 +739,6 @@ async function openPro(why){
   const c = bill.cfg || {};
   if (!c.enabled){ setStatus("Everything is free right now, so there's nothing to upgrade."); return; }
   $("proPrice").textContent = String(Number(c.price || 5));
-  $("proFree").textContent = c.freeLimit || 15;
   $("proWhy").hidden = !why; $("proWhy").textContent = why || "";
   $("pro").hidden = false;
   const body = $("proBody");
@@ -740,7 +750,7 @@ async function openPro(why){
   }
   if (bill.ppLoaded || !c.paypalClientId || !c.planId) return;
   try {
-    await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&vault=true&intent=subscription&currency=USD`);
+    await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&vault=true&intent=subscription&currency=USD&enable-funding=card,venmo`);
     bill.ppLoaded = true;
     paypal.Buttons({
       style: { shape: "pill", color: "gold", layout: "vertical", label: "subscribe" },
@@ -750,7 +760,7 @@ async function openPro(why){
         body.innerHTML = ""; body.append(el("p", null, "Confirming your subscription with PayPal…"));
         try {
           const s = await api("/api/billing", { action: "activate", subscriptionID: d.subscriptionID });
-          bill.cfg = s; bill.pro = s.pro; bill.used = s.used; bill.limit = s.limit; renderPlan();
+          bill.cfg = s; bill.pro = s.pro; renderPlan();
           body.innerHTML = ""; body.append(el("p", null, "You're on Pro now. Enjoy unlimited checks!"));
           setStatus("Welcome to Second Read Pro!");
         } catch (e) { body.innerHTML = ""; body.append(el("p", null, errMsg(e))); }
