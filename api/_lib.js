@@ -1,4 +1,5 @@
 // Shared helpers for the API routes. Files starting with "_" are not exposed as routes on Vercel.
+import { charge } from "./_billing.js";
 const MODEL = process.env.MODEL || "claude-haiku-4-5-20251001";
 const MAX_CHARS = 20000;
 
@@ -35,7 +36,8 @@ async function googleUser(req) {
   } catch (e) { console.error("tokeninfo failed", e); return null; }
 }
 
-export async function guard(req, res) {
+// opts.cost: credits this request uses from the student's daily allowance (see _billing.js).
+export async function guard(req, res, opts = {}) {
   if (req.method !== "POST") { res.status(405).json({ code: "method_not_allowed" }); return null; }
   if (!process.env.ANTHROPIC_API_KEY) { res.status(500).json({ code: "not_configured" }); return null; }
   const body = typeof req.body === "string" ? safeParse(req.body) : (req.body || {});
@@ -48,6 +50,12 @@ export async function guard(req, res) {
   if (!user) { res.status(401).json({ code: "need_login" }); return null; }
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
   if (rateLimited(user.sub || ip)) { res.status(429).json({ code: "rate_limited" }); return null; }
+  req.srUser = user;
+  try {
+    const cost = opts.cost == null ? 1 : opts.cost;
+    const denied = await charge(user, cost, String(req.headers["x-sr-subscription"] || ""), res);
+    if (denied) { res.status(denied.status).json({ code: denied.code }); return null; }
+  } catch (e) { console.error("billing check failed", e && (e.message || e.code)); }
   return body || {};
 }
 
