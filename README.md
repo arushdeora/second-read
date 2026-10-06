@@ -34,3 +34,30 @@ With the default model, one essay check costs about 1–2 cents (US), and humani
 ## Important
 
 AI detectors can be wrong, especially on formal writing and on work by multilingual students. The site says so on the page. Its results should help students revise, never serve as proof of misconduct.
+
+## Our own database and AI (Supabase + Hugging Face)
+
+Second Read keeps its own training data and trains its own AI detector. Everything below is optional: until the settings are added, the site works exactly as before.
+
+**What's stored (only when the database is connected):**
+- `samples`: training texts with a `human` / `ai` label. Student text is saved **only** when the student ticks *"Let Second Read use this text to train its own AI"*. Public essays are added from the training notebook. Students can delete all their contributions from the site.
+- `feedback`: thumbs up/down, and "Wrong, I wrote this myself" on AI results (labels that text as human).
+- `sources`: our own plagiarism index. Sources already found are checked before searching the web.
+
+### 1. Database (Supabase, free)
+1. Sign up at https://supabase.com and create a project called `second-read`.
+2. Open **SQL Editor → New query**, paste everything from `supabase/schema.sql`, and click **Run**.
+3. In **Project Settings → API Keys**, copy the **Project URL** and the **secret** key (`sb_secret_…`, or the older `service_role` key).
+4. In Vercel → **Settings → Environment Variables**, add `SUPABASE_URL` and `SUPABASE_SECRET_KEY`, then redeploy.
+5. Check progress any time by running `select * from training_stats;` in the SQL Editor.
+
+### 2. Train the detector (Google Colab, free)
+Open `training/train_detector.ipynb` in https://colab.research.google.com, choose **Runtime → Change runtime type → T4 GPU**, and run every cell. The first run fills the database with public essays, trains the model and saves it to your Hugging Face account. Re-run it whenever the database has grown.
+
+### 3. Run the detector (Hugging Face Space, free)
+1. On https://huggingface.co choose **New → Space**, pick **Docker** (blank) and the free CPU.
+2. Upload the three files from `detector-space/`.
+3. In the Space's **Settings → Variables and secrets**, add `MODEL_ID` (e.g. `your-name/second-read-detector`) and a secret `DETECTOR_KEY` (any long password you make up).
+4. In Vercel, add `DETECTOR_URL` (e.g. `https://your-name-second-read-detector.hf.space`) and the same `DETECTOR_KEY`, then redeploy.
+
+The AI Detector then uses **our model** together with Claude. Set `DETECTOR_MODE` = `only` in Vercel to stop using Claude for AI detection completely.

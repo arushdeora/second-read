@@ -67,6 +67,11 @@ main{padding:18px 22px 40px;min-width:0}
 .phead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600;font-size:.9rem;color:var(--muted);min-height:48px}
 textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7 var(--body);color:var(--ink);background:var(--paper);min-height:380px;outline:none}
 .pfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.consent{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);padding:6px 14px 0;cursor:pointer}
+.consent input{margin:0}
+.consent a{color:var(--muted)}
+.fb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 4px;padding-top:12px;border-top:1px dashed var(--line);font-size:.85rem;color:var(--muted)}
+.fb button{padding:4px 10px;font-size:.82rem}
 .pfoot .left{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .meta{font-size:.84rem;color:var(--muted)}
 .out{flex:1;overflow:auto;padding:16px;max-height:640px}
@@ -190,7 +195,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <button data-tool="human"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4-5.5 7-5.5s5.5 1.5 7 5.5"/></svg>Humanizer</button>
       <button data-tool="cite"><svg viewBox="0 0 24 24"><path d="M7 10c-2 0-3 1.3-3 3v3h4v-4H6c0-1 .5-2 2-2zM16 10c-2 0-3 1.3-3 3v3h4v-4h-2c0-1 .5-2 2-2z"/></svg>Citation Generator</button>
     </nav>
-    <div class="foot">Free daily credits.<br><a href="#" id="footPro" hidden>Pro: unlimited, $5/month<br></a><a href="/privacy.html">Privacy policy</a></div>
+    <div class="foot">Free daily credits.<br><a href="#" id="footPro" hidden>Pro: unlimited, $5/month<br></a><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
   </aside>
 
   <main>
@@ -211,6 +216,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
           <select id="citeStyle"><option value="apa">APA 7</option><option value="mla">MLA 9</option><option value="chicago">Chicago 17</option></select>
           <p class="note">You'll get APA, MLA and Chicago at once. Each one is added to your reference list on the right.</p>
         </div>
+        <label class="consent"><input type="checkbox" id="contrib"> Let Second Read use this text to train its own AI <a href="/privacy.html#training" target="_blank" rel="noopener">(what's saved?)</a></label>
         <div class="progress" id="busy" hidden><i></i></div>
         <div class="pfoot">
           <div class="left" id="inTools">
@@ -304,6 +310,7 @@ async function api(path, body, signal){
     const headers = { "content-type": "application/json" };
     if (auth.token) headers.authorization = "Bearer " + auth.token;
     const sid = subId(); if (sid) headers["x-sr-subscription"] = sid;
+    if (body && typeof body === "object" && contributing()) body = { ...body, contribute: true };
     res = await fetch(path, { method: "POST", headers, body: JSON.stringify(body), signal });
   } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error" }; }
   const data = await res.json().catch(() => ({}));
@@ -418,7 +425,7 @@ function resultText(host, title, base, text, note){
 function needText(min = 3){ const t = input.value.replace(/\r\n/g, "\n"); if (words(t).length < min){ setStatus(min > 3 ? `Paste at least a few sentences (${min}+ words).` : "Type or paste some text first.", true); return null; } return t; }
 async function step(host, msg, fn){
   ctl = new AbortController(); busy(true); setStatus(msg);
-  try { await fn(ctl.signal); }
+  try { await fn(ctl.signal); addFeedback(host); }
   catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : errMsg(e), !(e && e.code === "cancelled")); }
   finally { busy(false); }
 }
@@ -551,7 +558,7 @@ async function runAI(){
   await step(outs.ai, "Reading each sentence for signs of AI writing…", async sig => {
     const d = await api("/api/analyze", { sentences: sents.map(s => ({ i: s.i, text: s.text })) }, sig);
     const host = outs.ai; host.textContent = "";
-    const ap = Math.round(Number(d.score) || 0);
+    const ap = Math.round(Number(d.score) || 0); host._score = ap;
     const ring = el("div", "ring"); const dial = el("div", "dial"); dial.style.setProperty("--p", ap); dial.style.setProperty("--c", ap >= 60 ? "var(--bad)" : ap >= 30 ? "var(--warn)" : "var(--good)"); dial.append(el("div", null, ap + "%"));
     const p = el("p"); p.append(el("b", null, ap >= 60 ? "Likely AI-written" : ap >= 30 ? "Partly AI-written" : "Looks human-written"), document.createElement("br"), document.createTextNode(d.summary || ""));
     ring.append(dial, p); host.append(ring);
@@ -673,6 +680,32 @@ $("run").onclick = requireLogin(() => RUN[tool]());
     auth.ready = true; if (!$("gate").hidden) openGate(); if (!signedIn()) google.accounts.id.prompt();
   } catch { setStatus("Google sign-in couldn't load. Refresh the page.", true); }
 })();
+
+/* ---------- Training data: consent + feedback ---------- */
+function contributing(){ return $("contrib").checked; }
+try { $("contrib").checked = localStorage.getItem("sr_contrib") === "1"; } catch {}
+$("contrib").onchange = () => { try { localStorage.setItem("sr_contrib", $("contrib").checked ? "1" : "0"); } catch {} };
+function addFeedback(host){
+  const key = Object.keys(outs).find(k => outs[k] === host); if (!key || !host.childElementCount) return;
+  host.querySelectorAll(".fb").forEach(x => x.remove());
+  const bar = el("div", "fb"); bar.append(el("span", null, key === "ai" ? "Is this result right?" : "Was this helpful?"));
+  const send = (rating, kind) => async () => {
+    bar.querySelectorAll("button").forEach(b => b.disabled = true);
+    try { await api("/api/feedback", { tool: key, rating, kind, score: host._score, text: input.value.trim().slice(0, 40000) }); } catch {}
+    bar.textContent = kind !== "wrong_ai" ? "Thanks for the feedback!" : contributing() ? "Thanks! We'll use this to teach our detector that you wrote it." : "Thanks! Tick \"Let Second Read use this text\" next time so our detector can learn from it.";
+  };
+  const mk = (label, rating, kind) => { const b = el("button", null, label); b.type = "button"; b.onclick = send(rating, kind); bar.append(b); };
+  if (key === "ai"){ mk("👍 Correct", "up", "correct_ai"); mk("✋ Wrong, I wrote this myself", "down", "wrong_ai"); }
+  else { mk("👍 Yes", "up", "good"); mk("👎 No", "down", "bad"); }
+  host.append(bar);
+}
+
+$("delMine").onclick = requireLogin(async e => {
+  if (e) e.preventDefault();
+  if (!confirm("Delete every text and piece of feedback you've shared with Second Read? This can't be undone.")) return;
+  try { await api("/api/feedback", { action: "delete_mine" }); $("contrib").checked = false; $("contrib").onchange(); setStatus("Done. Everything you shared has been deleted."); }
+  catch (err) { setStatus(errMsg(err), true); }
+});
 
 /* ---------- Free credits & Pro ($5/month via PayPal) ---------- */
 const bill = { enabled: false, pro: false, used: 0, limit: 0, cfg: null, ppLoaded: false };
