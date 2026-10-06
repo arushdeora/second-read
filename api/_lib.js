@@ -29,7 +29,7 @@ async function googleUser(req) {
     const t = await r.json();
     const okIss = t.iss === "accounts.google.com" || t.iss === "https://accounts.google.com";
     if (t.aud !== clientId || !okIss || Number(t.exp) * 1000 < Date.now()) return null;
-    const user = { sub: t.sub, email: t.email, exp: Number(t.exp) };
+    const user = { sub: t.sub, email: String(t.email_verified) === "true" ? String(t.email || "").toLowerCase() : "", exp: Number(t.exp) };
     if (tokenCache.size > 2000) tokenCache.clear();
     tokenCache.set(token, user);
     return user;

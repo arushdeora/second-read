@@ -6,6 +6,7 @@
 //   PAYPAL_ENV          "sandbox" to test with PayPal sandbox accounts (default: live)
 //   PAYPAL_PLAN_ID      use an existing PayPal plan; otherwise a $5/month "Second Read Pro" plan is created automatically
 //   PRO_PRICE           monthly price in USD for the auto-created plan (default 5.00)
+//   OWNER_EMAILS        comma-separated Google emails that always have free, unlimited access (default: the owner)
 //   FREE_TRIAL_MINUTES  length of the free trial, counted from a student's first check (default 15)
 //   PRO_DAILY_CREDITS   fair-use cap for Pro members per day (default 400)
 //   KV_REST_API_URL + KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)
@@ -17,6 +18,8 @@ import { dbEnabled, select as dbSelect, insert as dbInsert, userHash } from "./_
 
 const env = k => String(process.env[k] || "").trim().replace(/^["']|["']$/g, "").trim();
 export const billingEnabled = () => !!(env("PAYPAL_CLIENT_ID") && env("PAYPAL_SECRET"));
+const OWNERS = () => (env("OWNER_EMAILS") || "arushdeora24@gmail.com").toLowerCase().split(/[\s,;]+/).filter(Boolean);
+export const isOwner = user => !!(user && user.email && OWNERS().includes(user.email));
 const TRIAL_MS = () => (Number(env("FREE_TRIAL_MINUTES") || 15) || 15) * 60e3;
 const PRO = () => Number(env("PRO_DAILY_CREDITS") || 400);
 const PRICE = () => (Number(env("PRO_PRICE") || 5) || 5).toFixed(2);
@@ -165,6 +168,7 @@ async function trialEnds(user, start = false) {
 // Check one request. Returns null if allowed, or an error {status, code}.
 export async function charge(user, cost, hintId, res) {
   if (!billingEnabled() || !user || !user.sub || !cost) return null;
+  if (isOwner(user)) { res.setHeader("x-sr-pro", "1"); return null; }   // the owner always has free access
   const info = await proStatus(user, hintId);
   res.setHeader("x-sr-pro", info.pro ? "1" : "0");
   if (info.pro) {
@@ -183,8 +187,10 @@ export async function charge(user, cost, hintId, res) {
 
 export async function status(user, hintId) {
   if (!billingEnabled() || !user || !user.sub) return { enabled: false };
-  const info = await proStatus(user, hintId);
+  const owner = isOwner(user);
+  const info = owner ? { pro: true, status: "OWNER" } : await proStatus(user, hintId);
   return {
+    owner,
     enabled: true, pro: !!info.pro, subscriptionStatus: info.status || null, paidUntil: info.paidUntil || null,
     trialMinutes: TRIAL_MS() / 60e3, trialEndsAt: info.pro ? null : await trialEnds(user, false), now: Date.now(), price: PRICE(),
     paypalClientId: env("PAYPAL_CLIENT_ID"), planId: await getPlanId(),
