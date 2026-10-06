@@ -716,7 +716,7 @@ function renderPlan(){
   if (!bill.enabled){ p.hidden = true; return; }
   p.hidden = false;
   const left = bill.trialEnds ? bill.trialEnds - Date.now() : null;
-  if (bill.pro){ p.className = "plan pro"; p.textContent = "Pro ✓"; p.title = "Manage your subscription in PayPal"; return; }
+  if (bill.pro){ const own = bill.cfg && bill.cfg.owner; p.className = "plan pro"; p.textContent = own ? "Owner · free access" : "Pro ✓"; p.title = own ? "You have free, unlimited access as the owner" : "Manage your subscription in PayPal"; return; }
   if (left == null){ p.className = "plan"; p.textContent = `${(bill.cfg && bill.cfg.trialMinutes) || 15}-min free trial`; }
   else if (left > 0){ const m = Math.ceil(left / 60e3); p.className = "plan" + (m <= 3 ? " low" : ""); p.textContent = `Free trial · ${m} min left`; }
   else { p.className = "plan low"; p.textContent = "Trial ended · Get access"; }
@@ -742,6 +742,7 @@ async function openPro(why){
   $("proWhy").hidden = !why; $("proWhy").textContent = why || "";
   $("pro").hidden = false;
   const body = $("proBody");
+  if (c.owner){ $("proBody").innerHTML = ""; $("proBody").append(el("p", null, "You're the owner, so you have free, unlimited access. This is the box students see after their 15-minute trial.")); return; }
   if (c.pro){
     const until = c.subscriptionStatus !== "ACTIVE" && c.paidUntil ? ` until ${new Date(c.paidUntil).toLocaleDateString()}` : "";
     body.innerHTML = ""; body.append(el("p", null, `You're on Pro${until}. Thank you for supporting Second Read!`));
