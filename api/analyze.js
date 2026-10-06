@@ -1,12 +1,17 @@
 import { guard, cleanSentences, tooLong, askClaude, fail } from "./_lib.js";
 import { collect } from "./_db.js";
+import { ownScores } from "./_detector.js";
 
-// Our own trained detector (see training/ and detector-space/). When DETECTOR_URL is set it is used:
+// Our own trained detector. It runs inside this server (api/_detector.js + _detector-model.js),
+// or on a bigger hosted model if DETECTOR_URL is set (see training/ and detector-space/).
 //   DETECTOR_MODE=blend (default): our model + Claude + style statistics
 //   DETECTOR_MODE=only:            our model + style statistics, no Claude at all
+//   DETECTOR_MODE=off:             don't use our model
 const envv = k => String(process.env[k] || "").trim();
 async function ownModel(texts) {
-  const url = envv("DETECTOR_URL"); if (!url) return null;
+  if (envv("DETECTOR_MODE").toLowerCase() === "off") return null;
+  const url = envv("DETECTOR_URL");
+  if (!url) { const p = await ownScores(texts); return p ? p.map(x => clamp(Math.round(x * 100))) : null; }
   try {
     const headers = { "content-type": "application/json" };
     if (envv("DETECTOR_KEY")) headers.authorization = "Bearer " + envv("DETECTOR_KEY");
@@ -92,9 +97,11 @@ Include every sentence number exactly once.`;
       ? { score: null, summary: "", sentences: sentences.map((s, k) => ({ i: s.i, likelihood: own[k], reason: own[k] >= 50 ? "Our detector found AI-like patterns here." : "Reads like human writing to our detector." })) }
       : await askClaude(prompt, Math.min(8000, 600 + sentences.length * 60), { temperature: 0, model: process.env.AI_MODEL || undefined });
     if (own && !onlyOwn) {
-      // Blend our model into Claude's per-sentence view (our model counts for 60%).
+      // Blend our model into Claude's per-sentence view. DETECTOR_WEIGHT (0-1) sets our model's share:
+      // 0.35 by default while our model is young; raise it as retraining improves accuracy.
+      const ww = Math.max(0, Math.min(1, Number(envv("DETECTOR_WEIGHT") || 0.35)));
       const ownBy = new Map(sentences.map((s, k) => [s.i, own[k]]));
-      r.sentences = (Array.isArray(r.sentences) ? r.sentences : []).map(x => ownBy.has(Number(x.i)) ? { ...x, likelihood: 0.6 * ownBy.get(Number(x.i)) + 0.4 * (Number(x.likelihood) || 0) } : x);
+      r.sentences = (Array.isArray(r.sentences) ? r.sentences : []).map(x => ownBy.has(Number(x.i)) ? { ...x, likelihood: ww * ownBy.get(Number(x.i)) + (1 - ww) * (Number(x.likelihood) || 0) } : x);
       r.score = null;
     }
     const st = stats(sentences);
