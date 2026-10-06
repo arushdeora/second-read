@@ -1,4 +1,25 @@
 import { guard, cleanSentences, tooLong, extractJson, fail } from "./_lib.js";
+import { dbEnabled, select, insert, update, sha, norm, wordCount } from "./_db.js";
+
+// Our own plagiarism index: every source found is saved (as a one-way hash of the sentence,
+// plus the sentence itself only if the student agreed), so repeat passages are found instantly.
+const keyOf = t => sha(norm(t));
+async function lookupIndex(sentences) {
+  if (!dbEnabled()) return [];
+  const cands = sentences.filter(s => wordCount(s.text) >= 8);
+  if (!cands.length) return [];
+  const byHash = new Map(cands.map(s => [keyOf(s.text), s.i]));
+  const rows = await select("sources", "select=id,passage_hash,url,title,type,hits&passage_hash=in.(" + [...byHash.keys()].join(",") + ")&limit=50");
+  return rows.map(r => ({ i: byHash.get(r.passage_hash), match: "exact", type: r.type === "book" ? "book" : "web", url: r.url, title: r.title || r.url, note: "Found in Second Read's source index", _id: r.id, _hits: r.hits }));
+}
+async function saveIndex(sentences, matches, contribute) {
+  if (!dbEnabled() || !matches.length) return;
+  const textOf = new Map(sentences.map(s => [s.i, s.text]));
+  const rows = matches.filter(m => m.match === "exact" && textOf.has(m.i)).map(m => ({
+    passage_hash: keyOf(textOf.get(m.i)), passage: contribute ? textOf.get(m.i) : null, url: m.url, title: m.title, type: m.type,
+  }));
+  await insert("sources", rows, { onConflict: "passage_hash,url" });
+}
 
 // Searching the web takes a while; give the function time to finish.
 export const config = { maxDuration: 60 };
@@ -16,6 +37,8 @@ export default async function handler(req, res) {
   if (!sentences.length) return res.status(400).json({ code: "empty" });
   if (tooLong(sentences)) return res.status(413).json({ code: "too_long" });
 
+  const indexed = await lookupIndex(sentences);
+  for (const m of indexed) if (m._id) update("sources", "id=eq." + m._id, { hits: (m._hits || 1) + 1 });
   const numbered = sentences.map(s => `[${s.i}] ${s.text}`).join("\n");
   const prompt = `You are a plagiarism checker for a university student's assignment. Your job is to find sentences that were copied (word for word, or nearly) from published books or from websites.
 
@@ -66,6 +89,10 @@ If nothing matched, return an empty matches array.`;
       .filter(m => m && known.has(Number(m.i)) && /^https?:\/\//.test(String(m.url || "")))
       .slice(0, 20)
       .map(m => ({ i: Number(m.i), match: m.match === "exact" ? "exact" : "close", type: m.type === "book" || /books\.google|gutenberg\.org|archive\.org\/details|goodreads\.com/.test(String(m.url)) ? "book" : "web", url: String(m.url), title: String(m.title || m.url).slice(0, 160), note: String(m.note || "").slice(0, 160) }));
+    await saveIndex(sentences, matches, body.contribute === true);
+    // Add matches from our own index that the web search didn't repeat.
+    const seen = new Set(matches.map(m => m.i + " " + m.url));
+    for (const m of indexed) if (m.i != null && !seen.has(m.i + " " + m.url)) { const { _id, _hits, ...clean } = m; matches.push(clean); }
     res.status(200).json({
       checked: Number(json.checked) || searched.length,
       searches: searched.length,

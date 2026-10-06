@@ -1,4 +1,5 @@
 import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail } from "./_lib.js";
+import { collect } from "./_db.js";
 
 // A full rewrite of a long essay can take a while.
 export const config = { maxDuration: 60 };
@@ -28,6 +29,8 @@ ${text}
     try {
       const out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.1 });
       if (!out.text) return res.status(502).json({ code: "upstream_error" });
+      // With the student's permission, keep the machine-written result as an "ai" example for training.
+      await collect(req, body, out.text, { tool: "human", label: "ai", origin: "generated" });
       return res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
     } catch (e) { return fail(res, e); }
   }

@@ -1,4 +1,5 @@
 import { guard, askClaude, askClaudeText, rewriteKeepLength, fail } from "./_lib.js";
+import { collect } from "./_db.js";
 
 // Writing assistant: grammar & clarity review, rewrite modes, and citations.
 export const config = { maxDuration: 60 };
@@ -22,9 +23,9 @@ export default async function handler(req, res) {
   const mode = String(body.mode || "");
   try {
     if (mode === "review") return await review(body, res);
-    if (mode === "rewrite") return await rewrite(body, res);
+    if (mode === "rewrite") return await rewrite(body, res, req);
     if (mode === "cite") return await cite(body, res);
-    if (mode === "original") return await original(body, res);
+    if (mode === "original") return await original(body, res, req);
     return res.status(400).json({ code: "bad_mode" });
   } catch (e) { fail(res, e); }
 }
@@ -76,7 +77,7 @@ Reply with ONLY JSON:
   });
 }
 
-async function rewrite(body, res) {
+async function rewrite(body, res, req) {
   const text = String(body.text || "").replace(/\r\n/g, "\n").trim();
   const style = String(body.style || "");
   if (!text) return res.status(400).json({ code: "empty" });
@@ -97,12 +98,13 @@ ${text}
   const range = style === "shorter" ? { min: 0.55, max: 0.8 } : style === "longer" ? { min: 1.2, max: 1.6 } : style === "simpler" ? { min: 0.85, max: 1.1 } : { min: 0.92, max: 1.12 };
   const out = await rewriteKeepLength(prompt, text, { ...range, maxTokens: Math.min(16000, Math.ceil(text.length / (style === "longer" ? 1.4 : 2)) + 1200) });
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
+  await collect(req, body, out.text, { tool: "para", label: "ai", origin: "generated" });
   res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
 }
 
 // Rewrite the whole text so passages that match published sources are put into the
 // student's own words (and grammar is fixed), with a reminder to cite the idea.
-async function original(body, res) {
+async function original(body, res, req) {
   const text = String(body.text || "").replace(/\r\n/g, "\n").trim();
   if (!text) return res.status(400).json({ code: "empty" });
   if (text.length > MAX) return res.status(413).json({ code: "too_long" });
@@ -135,6 +137,7 @@ ${text}
   // Citation reminders add a few words, so allow a little extra.
   const out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.15 });
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
+  await collect(req, body, out.text, { tool: "para", label: "ai", origin: "generated" });
   res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
 }
 

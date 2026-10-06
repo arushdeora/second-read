@@ -1,4 +1,23 @@
 import { guard, cleanSentences, tooLong, askClaude, fail } from "./_lib.js";
+import { collect } from "./_db.js";
+
+// Our own trained detector (see training/ and detector-space/). When DETECTOR_URL is set it is used:
+//   DETECTOR_MODE=blend (default): our model + Claude + style statistics
+//   DETECTOR_MODE=only:            our model + style statistics, no Claude at all
+const envv = k => String(process.env[k] || "").trim();
+async function ownModel(texts) {
+  const url = envv("DETECTOR_URL"); if (!url) return null;
+  try {
+    const headers = { "content-type": "application/json" };
+    if (envv("DETECTOR_KEY")) headers.authorization = "Bearer " + envv("DETECTOR_KEY");
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 25000);
+    const r = await fetch(url.replace(/\/+$/, "") + "/score", { method: "POST", headers, body: JSON.stringify({ texts }), signal: ctl.signal });
+    clearTimeout(t);
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !Array.isArray(d.scores) || d.scores.length !== texts.length) { console.error("own detector failed", r.status, d); return null; }
+    return d.scores.map(x => clamp(Math.round(Number(x) * 100)));
+  } catch (e) { console.error("own detector error", e && e.message); return null; }
+}
 
 // AI-writing estimate. Two independent signals are blended so one over-eager judgement
 // can't push an honest essay to a high score:
@@ -67,7 +86,17 @@ Reply with ONLY JSON:
 Include every sentence number exactly once.`;
 
   try {
-    const r = await askClaude(prompt, Math.min(8000, 600 + sentences.length * 60), { temperature: 0, model: process.env.AI_MODEL || undefined });
+    const own = await ownModel(sentences.map(s => s.text));
+    const onlyOwn = own && envv("DETECTOR_MODE").toLowerCase() === "only";
+    const r = onlyOwn
+      ? { score: null, summary: "", sentences: sentences.map((s, k) => ({ i: s.i, likelihood: own[k], reason: own[k] >= 50 ? "Our detector found AI-like patterns here." : "Reads like human writing to our detector." })) }
+      : await askClaude(prompt, Math.min(8000, 600 + sentences.length * 60), { temperature: 0, model: process.env.AI_MODEL || undefined });
+    if (own && !onlyOwn) {
+      // Blend our model into Claude's per-sentence view (our model counts for 60%).
+      const ownBy = new Map(sentences.map((s, k) => [s.i, own[k]]));
+      r.sentences = (Array.isArray(r.sentences) ? r.sentences : []).map(x => ownBy.has(Number(x.i)) ? { ...x, likelihood: 0.6 * ownBy.get(Number(x.i)) + 0.4 * (Number(x.likelihood) || 0) } : x);
+      r.score = null;
+    }
     const st = stats(sentences);
     const list = (Array.isArray(r.sentences) ? r.sentences : []).map(x => ({ i: Number(x.i), likelihood: clamp(Math.round(Number(x.likelihood) || 0)), reason: String(x.reason || "").slice(0, 160) }));
     // Model's view: length-weighted mean of sentence likelihoods, blended with its overall number.
@@ -75,7 +104,7 @@ Include every sentence number exactly once.`;
     let wsum = 0, lsum = 0;
     sentences.forEach(s => { const w = Math.max(1, wordsOf(s.text).length); const l = (byI.get(s.i) || { likelihood: 20 }).likelihood; wsum += w; lsum += w * l; });
     const modelMean = wsum ? lsum / wsum : 20;
-    const modelScore = 0.5 * modelMean + 0.5 * clamp(Number(r.score) || modelMean);
+    const modelScore = r.score == null ? modelMean : 0.5 * modelMean + 0.5 * clamp(Number(r.score) || modelMean);
     let score = 0.6 * modelScore + 0.4 * st.score;
     // Without measurable AI fingerprints (few stock phrases and varied sentences), don't report a high score.
     if (st.phraseRate < 0.4 && st.cv >= 0.42) score = Math.min(score, 35);
@@ -86,8 +115,10 @@ Include every sentence number exactly once.`;
     // Rescale sentence likelihoods so they agree with the overall result.
     const k = modelMean > 0 ? Math.min(1.2, score / modelMean) : 1;
     const sentencesOut = list.map(x => ({ ...x, likelihood: Math.round(clamp(x.likelihood * k)) }));
+    const summary = String(r.summary || "") || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector.");
+    await collect(req, body, sentences.map(s => s.text).join(" "), { tool: "ai", modelScore: score });
     res.status(200).json({
-      score, summary: String(r.summary || ""), sentences: sentencesOut,
+      score, summary, sentences: sentencesOut, engine: own ? (onlyOwn ? "own" : "own+claude") : "claude",
       signals: [
         { label: `Sentence variety ${st.cv >= 0.45 ? "high" : st.cv >= 0.3 ? "medium" : "low"}`, level: st.cv >= 0.45 ? "good" : st.cv >= 0.3 ? "warn" : "bad" },
         { label: `${st.phraseHits} stock AI phrase${st.phraseHits === 1 ? "" : "s"}`, level: st.phraseRate < 0.4 ? "good" : st.phraseRate < 1 ? "warn" : "bad" },
