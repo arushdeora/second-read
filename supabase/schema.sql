@@ -44,9 +44,16 @@ create table if not exists sources (
 );
 create index if not exists sources_hash_idx on sources (passage_hash);
 
+-- Free-trial start time per student (one-way hash of the Google account).
+create table if not exists trials (
+  user_hash  text primary key,
+  started_at timestamptz not null default now()
+);
+
 alter table samples  enable row level security;
 alter table feedback enable row level security;
 alter table sources  enable row level security;
+alter table trials   enable row level security;
 
 -- Quick overview: run "select * from training_stats;" any time.
 create or replace view training_stats with (security_invoker = true) as
