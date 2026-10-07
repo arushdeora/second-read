@@ -195,7 +195,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <button data-tool="human"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4-5.5 7-5.5s5.5 1.5 7 5.5"/></svg>Humanizer</button>
       <button data-tool="cite"><svg viewBox="0 0 24 24"><path d="M7 10c-2 0-3 1.3-3 3v3h4v-4H6c0-1 .5-2 2-2zM16 10c-2 0-3 1.3-3 3v3h4v-4h-2c0-1 .5-2 2-2z"/></svg>Citation Generator</button>
     </nav>
-    <div class="foot">15-minute free trial.<br><a href="#" id="footPro" hidden>Full access: $5/month<br></a><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
+    <div class="foot">Free: 250 words per check.<br><a href="#" id="footPro" hidden>Pro: unlimited words, $5/month<br></a><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
   </aside>
 
   <main>
@@ -245,7 +245,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
         <div><b>Citation Generator</b>APA, MLA and Chicago references from a link, DOI, ISBN or book title.</div>
       </div>
       <h2>Questions</h2>
-      <details><summary>Is it free?</summary><p>Every student gets a 15-minute free trial with every tool, starting from their first check. After that, full access costs $5 USD a month. You can pay with PayPal or any debit or credit card, and you can cancel any time.</p></details>
+      <details><summary>Is it free?</summary><p>Yes. The free plan includes every tool for up to 250 words at a time, and citations are always free. Second Read Pro removes the word limit for $5 USD a month. You can pay with PayPal or any debit or credit card, and cancel any time.</p></details>
       <details><summary>How do I cancel Pro?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel Second Read Pro. You keep Pro until the end of the month you already paid for.</p></details>
       <details><summary>How does the plagiarism check work?</summary><p>It picks your most distinctive sentences and searches the web and book sources such as Google Books, Project Gutenberg and the Internet Archive for the same or nearly the same wording.</p></details>
       <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Treat the percentage as a guide for revising, not proof of who wrote something.</p></details>
@@ -266,11 +266,11 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 
 <div class="gate" id="pro" hidden role="dialog" aria-modal="true" aria-labelledby="proH">
   <div class="box pro-box">
-    <h2 id="proH">Get full access</h2>
+    <h2 id="proH">Second Read Pro</h2>
     <div class="price">$<span id="proPrice">5</span> <small>USD / month</small></div>
     <p class="why" id="proWhy" hidden></p>
     <ul>
-      <li>Unlimited use of every tool (fair use)</li>
+      <li>No word limit: check whole essays at once (free plan: 250 words)</li>
       <li>Plagiarism, AI detection, humanizing, paraphrasing and citations</li>
       <li>Cancel any time in PayPal. You keep access until the month ends.</li>
     </ul>
@@ -288,14 +288,20 @@ const words = s => (s.match(/[A-Za-z0-9’'-]+/g) || []);
 let ctl = null;
 function setStatus(msg, err){ $("status").textContent = msg; $("status").classList.toggle("err", !!err); }
 function busy(on){ $("busy").hidden = !on; $("run").disabled = on; document.querySelectorAll(".out button").forEach(b => b.disabled = on); }
-function updateCount(){ const n = words(input.value).length; $("count").textContent = `${n} word${n === 1 ? "" : "s"}`; }
+function updateCount(){
+  const n = words(input.value).length; const lim = typeof bill !== "undefined" && bill.enabled && !bill.pro ? bill.limit : 0;
+  $("count").textContent = lim ? `${n} / ${lim} words` : `${n} word${n === 1 ? "" : "s"}`;
+  $("count").style.color = lim && n > lim ? "var(--bad)" : "";
+}
 input.addEventListener("input", updateCount);
 $("clear").onclick = () => { input.value = ""; updateCount(); input.focus(); };
 const ERR = {
   rate_limited: "Too many requests in a short time. Wait a minute, then try again.",
   too_long: "That text is too long. Use one section at a time (about 3,000 words max).",
   need_login: "Please sign in with Google to continue. It's free to start.",
-  need_pro: "Your free trial has ended. Get full access for $5 USD a month to keep using Second Read.",
+  need_pro: "Go Pro for $5 USD a month to keep using Second Read.",
+  word_limit: "The free plan checks up to 250 words at a time. Go Pro for unlimited words, or check a shorter part.",
+  free_daily_cap: "You've reached today's free fair-use limit. Go Pro for unlimited use, or come back tomorrow.",
   daily_cap: "You've reached today's fair-use limit. It resets at midnight (UTC).",
   billing_error: "Payments are having a problem right now. Please try again later.",
   not_active: "PayPal hasn't confirmed that subscription yet. Wait a moment and refresh the page.",
@@ -314,8 +320,8 @@ async function api(path, body, signal){
     res = await fetch(path, { method: "POST", headers, body: JSON.stringify(body), signal });
   } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error" }; }
   const data = await res.json().catch(() => ({}));
-  if (res.headers.get("x-sr-pro")){ bill.enabled = true; bill.pro = res.headers.get("x-sr-pro") === "1"; const te = +res.headers.get("x-sr-trial-ends"); if (te) bill.trialEnds = te - bill.skew; renderPlan(); }
-  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "need_pro"){ bill.popped = true; if (bill.trialEnds == null || bill.trialEnds > Date.now()) bill.trialEnds = Date.now() - 1; renderPlan(); openPro(TRIAL_OVER); } throw { code: data.code || "upstream_error" }; }
+  if (res.headers.get("x-sr-pro")){ bill.enabled = true; bill.pro = res.headers.get("x-sr-pro") === "1"; const wl = +res.headers.get("x-sr-word-limit"); if (wl) bill.limit = wl; renderPlan(); }
+  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "word_limit") openPro(overLimitMsg()); throw { code: data.code || "upstream_error" }; }
   return data;
 }
 function sentences(text){
@@ -668,7 +674,7 @@ $("signInTop").onclick = openGate;
 $("signOut").onclick = () => { setToken(null); try { google.accounts.id.disableAutoSelect(); } catch {} setStatus("Signed out."); };
 function onCredential(resp){ setToken(resp && resp.credential); if (!signedIn()){ setStatus("Sign-in didn't finish. Please try again.", true); return; } $("gate").hidden = true; setStatus(`Signed in as ${auth.user.name || auth.user.email}.`); refreshBilling(); const next = auth.pending; auth.pending = null; if (next) next(); }
 function requireLogin(fn){ return function(...args){ if (!auth.clientId || signedIn()) return fn.apply(this, args); auth.pending = () => fn.apply(this, args); openGate(); }; }
-$("run").onclick = requireLogin(() => RUN[tool]());
+$("run").onclick = requireLogin(() => { if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
 (async function initAuth(){
   try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
   if (!auth.clientId) return;
@@ -707,29 +713,24 @@ $("delMine").onclick = requireLogin(async e => {
   catch (err) { setStatus(errMsg(err), true); }
 });
 
-/* ---------- 15-minute free trial, then $5/month via PayPal ---------- */
-const bill = { enabled: false, pro: false, trialEnds: null, skew: 0, cfg: null, ppLoaded: false, popped: false };
+/* ---------- Free plan: 250 words per check. Pro: $5/month via PayPal, no limit ---------- */
+var bill = { enabled: false, pro: false, limit: 250, cfg: null, ppLoaded: false };
 function subId(){ try { return localStorage.getItem("sr_subid") || ""; } catch { return ""; } }
-const TRIAL_OVER = "Your 15-minute free trial is over. Get full access to every tool for $5 USD a month.";
+const freeLimited = () => bill.enabled && !bill.pro;
+const overLimitMsg = () => `The free plan checks up to ${bill.limit} words at a time, and your text has ${words(input.value).length}. Go Pro for unlimited words, or check a shorter part.`;
 function renderPlan(){
   const p = $("planPill"); $("footPro").hidden = !bill.enabled || bill.pro;
+  updateCount();
   if (!bill.enabled){ p.hidden = true; return; }
   p.hidden = false;
-  const left = bill.trialEnds ? bill.trialEnds - Date.now() : null;
   if (bill.pro){ const own = bill.cfg && bill.cfg.owner; p.className = "plan pro"; p.textContent = own ? "Owner · free access" : "Pro ✓"; p.title = own ? "You have free, unlimited access as the owner" : "Manage your subscription in PayPal"; return; }
-  if (left == null){ p.className = "plan"; p.textContent = `${(bill.cfg && bill.cfg.trialMinutes) || 15}-min free trial`; }
-  else if (left > 0){ const m = Math.ceil(left / 60e3); p.className = "plan" + (m <= 3 ? " low" : ""); p.textContent = `Free trial · ${m} min left`; }
-  else { p.className = "plan low"; p.textContent = "Trial ended · Get access"; }
-  p.title = "Get full access for $5/month";
-  // Pop up the payment box the moment the trial runs out (once per visit).
-  if (left != null && left <= 0 && !bill.popped && $("pro").hidden){ bill.popped = true; openPro(TRIAL_OVER); }
+  p.className = "plan"; p.textContent = `Free · ${bill.limit} words per check`; p.title = "Go Pro for unlimited words, $5/month";
 }
-setInterval(() => { if (bill.enabled && !bill.pro) renderPlan(); }, 10000);
 async function refreshBilling(){
   if (!signedIn()) return;
   try {
     const s = await api("/api/billing", { action: "status" }); bill.cfg = s; bill.enabled = !!s.enabled;
-    if (s.enabled){ bill.skew = (s.now || Date.now()) - Date.now(); bill.pro = s.pro; bill.trialEnds = s.trialEndsAt ? s.trialEndsAt - bill.skew : null; }
+    if (s.enabled){ bill.pro = s.pro; bill.limit = s.freeWordLimit || 250; }
     renderPlan();
   } catch {}
 }
@@ -742,7 +743,7 @@ async function openPro(why){
   $("proWhy").hidden = !why; $("proWhy").textContent = why || "";
   $("pro").hidden = false;
   const body = $("proBody");
-  if (c.owner){ $("proBody").innerHTML = ""; $("proBody").append(el("p", null, "You're the owner, so you have free, unlimited access. This is the box students see after their 15-minute trial.")); return; }
+  if (c.owner){ $("proBody").innerHTML = ""; $("proBody").append(el("p", null, "You're the owner, so you have free, unlimited access. This is the box students see when their text is over the free 250-word limit.")); return; }
   if (c.pro){
     const until = c.subscriptionStatus !== "ACTIVE" && c.paidUntil ? ` until ${new Date(c.paidUntil).toLocaleDateString()}` : "";
     body.innerHTML = ""; body.append(el("p", null, `You're on Pro${until}. Thank you for supporting Second Read!`));
