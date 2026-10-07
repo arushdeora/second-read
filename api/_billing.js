@@ -1,26 +1,24 @@
-// 15-minute free trial, then Pro subscription ($5/month through PayPal).
+// Free plan (like QuillBot's): every tool, up to 250 words per check. Pro ($5/month through PayPal): no word limit.
 // Nothing here is active until PAYPAL_CLIENT_ID and PAYPAL_SECRET are set in Vercel:
-// until then every signed-in student can use the tools for free with no time limit.
+// until then every signed-in student can use the tools for free with no limits.
 //
 // Optional settings:
 //   PAYPAL_ENV          "sandbox" to test with PayPal sandbox accounts (default: live)
 //   PAYPAL_PLAN_ID      use an existing PayPal plan; otherwise a $5/month "Second Read Pro" plan is created automatically
 //   PRO_PRICE           monthly price in USD for the auto-created plan (default 5.00)
 //   OWNER_EMAILS        comma-separated Google emails that always have free, unlimited access (default: the owner)
-//   FREE_TRIAL_MINUTES  length of the free trial, counted from a student's first check (default 15)
+//   FREE_WORD_LIMIT     most words a free student can check at once (default 250)
+//   FREE_DAILY_CHECKS   fair-use cap on free checks per student per day, to protect the AI bill (default 40)
 //   PRO_DAILY_CREDITS   fair-use cap for Pro members per day (default 400)
 //   KV_REST_API_URL + KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)
 //                       a free Upstash Redis store; keeps usage counts and Pro status accurate across servers and devices
-// Trial start times are also saved in the Supabase "trials" table when the database is connected,
-// so a trial can't restart when the server restarts.
-
-import { dbEnabled, select as dbSelect, insert as dbInsert, userHash } from "./_db.js";
 
 const env = k => String(process.env[k] || "").trim().replace(/^["']|["']$/g, "").trim();
 export const billingEnabled = () => !!(env("PAYPAL_CLIENT_ID") && env("PAYPAL_SECRET"));
 const OWNERS = () => (env("OWNER_EMAILS") || "arushdeora24@gmail.com").toLowerCase().split(/[\s,;]+/).filter(Boolean);
 export const isOwner = user => !!(user && user.email && OWNERS().includes(user.email));
-const TRIAL_MS = () => (Number(env("FREE_TRIAL_MINUTES") || 15) || 15) * 60e3;
+const FREE_WORDS = () => Number(env("FREE_WORD_LIMIT") || 250) || 250;
+const FREE_DAILY = () => Number(env("FREE_DAILY_CHECKS") || 40) || 40;
 const PRO = () => Number(env("PRO_DAILY_CREDITS") || 400);
 const PRICE = () => (Number(env("PRO_PRICE") || 5) || 5).toFixed(2);
 const PP = () => env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
@@ -143,30 +141,8 @@ export async function usage(user) {
   return Number(await kv(["GET", `sr:use:${user.sub}:${day()}`]) || 0);
 }
 
-// When did this student's free trial start? (null = not started yet)
-async function trialStart(user) {
-  const v = Number(await kv(["GET", "sr:trial:" + user.sub]) || 0);
-  if (v) return v;
-  if (dbEnabled()) {
-    const rows = await dbSelect("trials", "select=started_at&user_hash=eq." + userHash(user));
-    if (rows[0]) { const t = Date.parse(rows[0].started_at); if (t) { await kv(["SET", "sr:trial:" + user.sub, String(t)]); return t; } }
-  }
-  return null;
-}
-async function startTrial(user) {
-  const now = Date.now();
-  await kv(["SET", "sr:trial:" + user.sub, String(now)]);
-  if (dbEnabled()) await dbInsert("trials", { user_hash: userHash(user), started_at: new Date(now).toISOString() }, { onConflict: "user_hash" });
-  return (await trialStart(user)) || now;   // keep the earliest start if one already existed
-}
-async function trialEnds(user, start = false) {
-  let t = await trialStart(user);
-  if (!t && start) t = await startTrial(user);
-  return t ? t + TRIAL_MS() : null;
-}
-
 // Check one request. Returns null if allowed, or an error {status, code}.
-export async function charge(user, cost, hintId, res) {
+export async function charge(user, cost, hintId, res, words = 0) {
   if (!billingEnabled() || !user || !user.sub || !cost) return null;
   if (isOwner(user)) { res.setHeader("x-sr-pro", "1"); return null; }   // the owner always has free access
   const info = await proStatus(user, hintId);
@@ -179,9 +155,13 @@ export async function charge(user, cost, hintId, res) {
     await kv(["INCRBY", key, cost]); await kv(["EXPIRE", key, 2 * 86400]);
     return null;
   }
-  const ends = await trialEnds(user, true);
-  res.setHeader("x-sr-trial-ends", String(ends));
-  if (Date.now() > ends) return { status: 402, code: "need_pro" };
+  // Free plan: up to FREE_WORDS words per check, plus a daily fair-use cap.
+  res.setHeader("x-sr-word-limit", String(FREE_WORDS()));
+  if (words > FREE_WORDS()) return { status: 402, code: "word_limit" };
+  const key = `sr:free:${user.sub}:${day()}`;
+  const used = Number(await kv(["GET", key]) || 0);
+  if (used + 1 > FREE_DAILY()) return { status: 429, code: "free_daily_cap" };
+  await kv(["INCRBY", key, 1]); await kv(["EXPIRE", key, 2 * 86400]);
   return null;
 }
 
@@ -192,7 +172,7 @@ export async function status(user, hintId) {
   return {
     owner,
     enabled: true, pro: !!info.pro, subscriptionStatus: info.status || null, paidUntil: info.paidUntil || null,
-    trialMinutes: TRIAL_MS() / 60e3, trialEndsAt: info.pro ? null : await trialEnds(user, false), now: Date.now(), price: PRICE(),
+    wordLimit: info.pro ? null : FREE_WORDS(), freeWordLimit: FREE_WORDS(), price: PRICE(),
     paypalClientId: env("PAYPAL_CLIENT_ID"), planId: await getPlanId(),
     manageUrl: env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://www.sandbox.paypal.com/myaccount/autopay/" : "https://www.paypal.com/myaccount/autopay/",
   };

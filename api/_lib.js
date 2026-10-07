@@ -36,6 +36,17 @@ async function googleUser(req) {
   } catch (e) { console.error("tokeninfo failed", e); return null; }
 }
 
+// Words a request asks us to process (the free plan allows up to 250 per check).
+function wordsIn(body) {
+  if (!body) return 0;
+  if (body.action) return 0;                       // billing / feedback calls
+  if (body.mode === "cite") return 0;              // citations are always free
+  const parts = [];
+  if (typeof body.text === "string") parts.push(body.text);
+  if (Array.isArray(body.sentences)) parts.push(...body.sentences.map(s => String((s && s.text) || "")));
+  return parts.join(" ").split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length;
+}
+
 // opts.cost: credits this request uses from the student's daily allowance (see _billing.js).
 export async function guard(req, res, opts = {}) {
   if (req.method !== "POST") { res.status(405).json({ code: "method_not_allowed" }); return null; }
@@ -53,7 +64,7 @@ export async function guard(req, res, opts = {}) {
   req.srUser = user;
   try {
     const cost = opts.cost == null ? 1 : opts.cost;
-    const denied = await charge(user, cost, String(req.headers["x-sr-subscription"] || ""), res);
+    const denied = await charge(user, cost, String(req.headers["x-sr-subscription"] || ""), res, wordsIn(body));
     if (denied) { res.status(denied.status).json({ code: denied.code }); return null; }
   } catch (e) { console.error("billing check failed", e && (e.message || e.code)); }
   return body || {};
