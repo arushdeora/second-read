@@ -2,10 +2,38 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://second-read-three.vercel.app/</loc>
-    <lastmod>2026-10-04</lastmod>
+    <lastmod>2026-10-07</lastmod>
   </url>
   <url>
     <loc>https://second-read-three.vercel.app/privacy.html</loc>
-    <lastmod>2026-10-04</lastmod>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/paraphrasing-tool/</loc>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/plagiarism-checker/</loc>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/ai-detector/</loc>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/grammar-checker/</loc>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/ai-humanizer/</loc>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/citation-generator/</loc>
+    <lastmod>2026-10-07</lastmod>
+  </url>
+  <url>
+    <loc>https://second-read-three.vercel.app/essay-checker/</loc>
+    <lastmod>2026-10-07</lastmod>
   </url>
 </urlset>

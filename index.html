@@ -158,6 +158,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 .tools-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .tools-grid div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px}
 .tools-grid b{display:block}
+.tools-grid b a{color:inherit;text-decoration:none}.tools-grid b a:hover{color:var(--accent2);text-decoration:underline}
 
 @media (max-width:900px){
   .shell{grid-template-columns:1fr}
@@ -237,12 +238,13 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <h2 id="aboutH">One toolkit for every assignment</h2>
       <p>Second Read puts the writing tools students need in one dashboard. Paste your essay once and switch between tools on the left.</p>
       <div class="tools-grid">
-        <div><b>Essay Check</b>Plagiarism %, AI-written % and grammar mistakes in one go, with a one-click rewrite.</div>
-        <div><b>Paraphraser</b>Rewrite in Standard, Fluency, Formal, Academic, Simple, Creative, Shorter or Longer mode.</div>
-        <div><b>Grammar Checker</b>Fixes spelling, grammar and punctuation, and shows clarity and tone.</div>
-        <div><b>Plagiarism Checker</b>Compares your sentences with websites and books, and links to each source.</div>
-        <div><b>AI Detector</b>Shows how much of your text reads as AI-written, sentence by sentence.</div>
-        <div><b>Citation Generator</b>APA, MLA and Chicago references from a link, DOI, ISBN or book title.</div>
+        <div><b><a href="/essay-checker/">Essay Check</a></b>Plagiarism %, AI-written % and grammar mistakes in one go, with a one-click rewrite.</div>
+        <div><b><a href="/paraphrasing-tool/">Paraphraser</a></b>Rewrite in Standard, Fluency, Formal, Academic, Simple, Creative, Shorter or Longer mode.</div>
+        <div><b><a href="/grammar-checker/">Grammar Checker</a></b>Fixes spelling, grammar and punctuation, and shows clarity and tone.</div>
+        <div><b><a href="/plagiarism-checker/">Plagiarism Checker</a></b>Compares your sentences with websites and books, and links to each source.</div>
+        <div><b><a href="/ai-detector/">AI Detector</a></b>Shows how much of your text reads as AI-written, sentence by sentence.</div>
+        <div><b><a href="/ai-humanizer/">AI Humanizer</a></b>Rewrites stiff, robotic drafts so they read naturally, in your own voice.</div>
+        <div><b><a href="/citation-generator/">Citation Generator</a></b>APA, MLA and Chicago references from a link, DOI, ISBN or book title.</div>
       </div>
       <h2>Questions</h2>
       <details><summary>Is it free?</summary><p>Yes. The free plan includes every tool for up to 250 words at a time, and citations are always free. Second Read Pro removes the word limit for $5 USD a month. You can pay with PayPal or any debit or credit card, and cancel any time.</p></details>
@@ -250,7 +252,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <details><summary>How does the plagiarism check work?</summary><p>It picks your most distinctive sentences and searches the web and book sources such as Google Books, Project Gutenberg and the Internet Archive for the same or nearly the same wording.</p></details>
       <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Treat the percentage as a guide for revising, not proof of who wrote something.</p></details>
       <details><summary>Do I still need to cite sources after paraphrasing?</summary><p>Yes. Putting an idea in your own words still means it came from someone else. Rewrites mark those places with a yellow [cite: …] reminder.</p></details>
-      <details><summary>Is my text saved?</summary><p>No. Your text is only used to produce your result and is not stored by this site.</p></details>
+      <details><summary>Is my text saved?</summary><p>Only if you tick the box to help train Second Read. Otherwise your text is used just to produce your result and is not stored. You can delete saved texts any time.</p></details>
     </section>
   </main>
 </div>
