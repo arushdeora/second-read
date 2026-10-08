@@ -14,11 +14,20 @@ export function meter(data, model) {
   m.searches += (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;
   m.model = model; m.calls++;
 }
-// Wrap a route so its usage is logged after it answers. Logging never breaks a request.
+// Wrap a route so its usage is logged. The JSON reply is held back until the log is written,
+// because Vercel can stop a function as soon as its response is sent. Logging never breaks a request.
 export const tracked = (tool, fn) => async (req, res) => {
   const m = { tool, mode: "", words: 0, inTok: 0, outTok: 0, searches: 0, calls: 0, model: null };
-  await meterStore.run(m, () => fn(req, res));
-  try { await logEvent(req, res, m); } catch (e) { console.error("usage log failed", e && e.message); }
+  const sendJson = res.json.bind(res);
+  let reply, replied = false;
+  res.json = body => { reply = body; replied = true; return res; };
+  try { await meterStore.run(m, () => fn(req, res)); }
+  finally {
+    try { await Promise.race([logEvent(req, res, m), new Promise(ok => setTimeout(ok, 3000))]); }
+    catch (e) { console.error("usage log failed", e && e.message); }
+    res.json = sendJson;
+    if (replied) sendJson(reply);
+  }
 };
 const MODEL = process.env.MODEL || "claude-haiku-4-5-20251001";
 const MAX_CHARS = 20000;
