@@ -60,3 +60,44 @@ create or replace view training_stats with (security_invoker = true) as
   select coalesce(label, 'unlabelled') as label, origin, count(*) as rows
   from samples group by 1, 2 order by 1, 2;
 revoke all on training_stats from anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------
+-- Usage, cost and revenue for the owner's /stats page (added October 2026).
+-- Safe to run again: everything uses "if not exists".
+
+-- One row per tool request: which tool, words, Claude usage and its cost. Never the text.
+create table if not exists events (
+  id          bigserial primary key,
+  created_at  timestamptz not null default now(),
+  tool        text not null,                          -- analyze, write, humanize, plagiarism, billing
+  mode        text,                                   -- e.g. paraphrase style, review, cite, pro_signup
+  status      int,                                    -- HTTP status (402 = hit the free word limit)
+  user_hash   text,
+  plan        text,                                   -- free, pro, owner
+  words       int,
+  in_tokens   int,
+  out_tokens  int,
+  searches    int,
+  model       text,
+  cost_usd    numeric(12, 6)
+);
+create index if not exists events_created_idx on events (created_at);
+
+-- Which accounts used the site on which day (for daily / new users).
+create table if not exists active_days (
+  user_hash  text not null,
+  day        date not null,
+  plan       text,
+  primary key (user_hash, day)
+);
+
+-- PayPal subscription IDs, so /stats can fetch the real payments from PayPal.
+create table if not exists subscriptions (
+  id          text primary key,
+  user_hash   text,
+  created_at  timestamptz not null default now()
+);
+
+alter table events        enable row level security;
+alter table active_days   enable row level security;
+alter table subscriptions enable row level security;
