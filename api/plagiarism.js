@@ -1,4 +1,4 @@
-import { guard, cleanSentences, tooLong, extractJson, fail } from "./_lib.js";
+import { guard, cleanSentences, tooLong, extractJson, fail, meter, tracked } from "./_lib.js";
 import { dbEnabled, select, insert, update, sha, norm, wordCount } from "./_db.js";
 
 // Our own plagiarism index: every source found is saved (as a one-way hash of the sentence,
@@ -31,7 +31,7 @@ function apiKey() {
   return String(process.env.ANTHROPIC_API_KEY || "").trim().replace(/^["']|["']$/g, "").trim();
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const body = await guard(req, res, { cost: 2 }); if (!body) return;
   const sentences = cleanSentences(body.sentences);
   if (!sentences.length) return res.status(400).json({ code: "empty" });
@@ -71,6 +71,7 @@ If nothing matched, return an empty matches array.`;
       }),
     });
     const data = await r.json().catch(() => ({}));
+    meter(data, MODEL);
     if (r.status === 429) return res.status(429).json({ code: "rate_limited" });
     if (!r.ok) {
       console.error("Anthropic API error (plagiarism)", r.status, data);
@@ -102,3 +103,5 @@ If nothing matched, return an empty matches array.`;
     });
   } catch (e) { fail(res, e); }
 }
+
+export default tracked("plagiarism", handler);

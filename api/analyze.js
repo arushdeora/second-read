@@ -1,4 +1,4 @@
-import { guard, cleanSentences, tooLong, askClaude, fail } from "./_lib.js";
+import { guard, cleanSentences, tooLong, askClaude, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
 import { ownScores } from "./_detector.js";
 
@@ -60,7 +60,7 @@ function stats(sentences) {
   return { score, cv, phraseHits, phraseRate, personalRate, words: n };
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const body = await guard(req, res); if (!body) return;
   const sentences = cleanSentences(body.sentences);
   if (!sentences.length) return res.status(400).json({ code: "empty" });
@@ -133,3 +133,5 @@ Include every sentence number exactly once.`;
     });
   } catch (e) { fail(res, e); }
 }
+
+export default tracked("analyze", handler);

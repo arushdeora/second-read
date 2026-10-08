@@ -107,6 +107,22 @@ async function checkSubscription(id, user) {
   return { id, pro, status: s.status, paidUntil };
 }
 
+// For the owner's /stats page: a subscription's status and the payments PayPal actually
+// received (gross, PayPal fee, net) since a date.
+export async function subscriptionReport(id, sinceISO) {
+  if (!billingEnabled() || !/^I-[A-Z0-9]{6,30}$/.test(String(id || ""))) return null;
+  const s = await pp("/v1/billing/subscriptions/" + id);
+  if (!s.ok) return null;
+  const end = new Date().toISOString();
+  const t = await pp(`/v1/billing/subscriptions/${id}/transactions?start_time=${encodeURIComponent(sinceISO)}&end_time=${encodeURIComponent(end)}`);
+  const num = x => Number((x && x.value) || 0);
+  const payments = ((t.ok && t.d.transactions) || []).filter(x => x.status === "COMPLETED").map(x => {
+    const b = x.amount_with_breakdown || {};
+    return { time: x.time, gross: num(b.gross_amount), fee: num(b.fee_amount), net: num(b.net_amount) || num(b.gross_amount) - num(b.fee_amount), currency: (b.gross_amount || {}).currency_code || "USD" };
+  });
+  return { id, status: s.d.status, startTime: s.d.start_time || s.d.create_time || null, payments };
+}
+
 const proCache = new Map();
 export async function proStatus(user, hintId) {
   const c = proCache.get(user.sub);

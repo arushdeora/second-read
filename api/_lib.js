@@ -1,5 +1,25 @@
 // Shared helpers for the API routes. Files starting with "_" are not exposed as routes on Vercel.
 import { charge } from "./_billing.js";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { logEvent } from "./_stats.js";
+
+// Usage meter: one per request. Records words, Claude tokens and web searches so the
+// owner's /stats page can show real usage and AI cost (see _stats.js).
+const meterStore = new AsyncLocalStorage();
+export function meter(data, model) {
+  const m = meterStore.getStore(); const u = data && data.usage;
+  if (!m || !u) return;
+  m.inTok += (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+  m.outTok += u.output_tokens || 0;
+  m.searches += (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;
+  m.model = model; m.calls++;
+}
+// Wrap a route so its usage is logged after it answers. Logging never breaks a request.
+export const tracked = (tool, fn) => async (req, res) => {
+  const m = { tool, mode: "", words: 0, inTok: 0, outTok: 0, searches: 0, calls: 0, model: null };
+  await meterStore.run(m, () => fn(req, res));
+  try { await logEvent(req, res, m); } catch (e) { console.error("usage log failed", e && e.message); }
+};
 const MODEL = process.env.MODEL || "claude-haiku-4-5-20251001";
 const MAX_CHARS = 20000;
 
@@ -62,6 +82,8 @@ export async function guard(req, res, opts = {}) {
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
   if (rateLimited(user.sub || ip)) { res.status(429).json({ code: "rate_limited" }); return null; }
   req.srUser = user;
+  const m = meterStore.getStore();
+  if (m) { m.words = wordsIn(body); m.mode = String(body.mode || body.action || body.style || ""); }
   try {
     const cost = opts.cost == null ? 1 : opts.cost;
     const denied = await charge(user, cost, String(req.headers["x-sr-subscription"] || ""), res, wordsIn(body));
@@ -112,6 +134,7 @@ export async function askClaude(prompt, maxTokens, opts = {}) {
   if (!r.ok) {
     console.error("Anthropic API error", r.status, data);
     if (r.status === 401) console.error(`Key check: starts with "${key.slice(0, 7)}", ${key.length} characters (a valid key starts with "sk-ant-" and is about 108 characters)`); throw { status: 502, code: "upstream_error" }; }
+  meter(data, opts.model || MODEL);
   if (data.stop_reason === "refusal") throw { status: 422, code: "refused" };
   const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
   const json = extractJson(text);
@@ -130,6 +153,7 @@ export async function askClaudeText(prompt, maxTokens) {
   const data = await r.json().catch(() => ({}));
   if (r.status === 429) throw { status: 429, code: "rate_limited" };
   if (!r.ok) { console.error("Anthropic API error", r.status, data); throw { status: 502, code: "upstream_error" }; }
+  meter(data, MODEL);
   if (data.stop_reason === "refusal") throw { status: 422, code: "refused" };
   return { text: (data.content || []).filter(c => c.type === "text").map(c => c.text).join("").trim(), cut: data.stop_reason === "max_tokens" };
 }

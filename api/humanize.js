@@ -1,4 +1,4 @@
-import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail } from "./_lib.js";
+import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
 
 // A full rewrite of a long essay can take a while.
@@ -6,7 +6,7 @@ export const config = { maxDuration: 60 };
 
 const STYLE = `natural, confident university-level English: keep precise academic vocabulary, subject terms and the same level of sophistication as the original (do NOT simplify, dumb down, or make it sound childish or overly casual), varied sentence length (mix shorter and longer, more complex sentences), no stock transitions (moreover, furthermore, in conclusion, it is important to note), no buzzwords (pivotal, multifaceted, leverage, foster, landscape, tapestry, delve), and a direct point of view`;
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const body = await guard(req, res); if (!body) return;
 
   // Mode 1: rewrite the whole text and return it as one piece.
@@ -54,3 +54,5 @@ Reply with ONLY a JSON array: [{"i": <number>, "rewrite": "<new sentence or two>
     res.status(200).json({ rewrites: Array.isArray(r) ? r : [] });
   } catch (e) { fail(res, e); }
 }
+
+export default tracked("humanize", handler);

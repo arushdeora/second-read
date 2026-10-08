@@ -1,4 +1,4 @@
-import { guard, askClaude, askClaudeText, rewriteKeepLength, fail } from "./_lib.js";
+import { guard, askClaude, askClaudeText, rewriteKeepLength, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
 
 // Writing assistant: grammar & clarity review, rewrite modes, and citations.
@@ -18,7 +18,7 @@ const STYLES = {
   fluent: "more fluent and natural, fixing awkward phrasing and grammar while keeping the writer's voice",
 };
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const body = await guard(req, res); if (!body) return;
   const mode = String(body.mode || "");
   try {
@@ -203,3 +203,5 @@ Reply with ONLY JSON: {"apa":"...","mla":"...","chicago":"...","intext":{"apa":"
   const r = await askClaude(prompt, 900);
   res.status(200).json({ source, apa: String(r.apa || ""), mla: String(r.mla || ""), chicago: String(r.chicago || ""), intext: r.intext || {} });
 }
+
+export default tracked("write", handler);
