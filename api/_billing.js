@@ -57,7 +57,22 @@ async function ppToken() {
     body: "grant_type=client_credentials",
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok || !d.access_token) { console.error("PayPal auth failed", r.status, d.error || d.name, "(check PAYPAL_CLIENT_ID / PAYPAL_SECRET / PAYPAL_ENV)"); throw { status: 502, code: "billing_error" }; }
+  if (!r.ok || !d.access_token) {
+    // Explain the usual causes without ever printing the keys themselves.
+    const id = env("PAYPAL_CLIENT_ID"), sec = env("PAYPAL_SECRET");
+    const hints = [];
+    if (/[^\x21-\x7e]/.test(id + sec)) hints.push("a key contains hidden dots or spaces (it was copied while masked); copy it again with the copy icon");
+    if (id.length < 70 || id.length > 90) hints.push(`client ID is ${id.length} characters (PayPal client IDs are about 80)`);
+    if (sec.length < 70 || sec.length > 90) hints.push(`secret is ${sec.length} characters (PayPal secrets are about 80)`);
+    if (r.status === 401 && !env("PAYPAL_ENV")) {
+      try {
+        const s = await fetch("https://api-m.sandbox.paypal.com/v1/oauth2/token", { method: "POST", headers: { authorization: "Basic " + Buffer.from(id + ":" + sec).toString("base64"), "content-type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials" });
+        if (s.ok) hints.push("these are SANDBOX (test) keys; use the LIVE keys from developer.paypal.com with the Live toggle on");
+      } catch (e) { /* ignore */ }
+    }
+    console.error("PayPal auth failed", r.status, d.error || d.name, "env:", env("PAYPAL_ENV") || "live", "|", hints.join("; ") || "keys look well-formed: the client ID and secret are probably from different apps, or the app was deleted");
+    throw { status: 502, code: "billing_error" };
+  }
   tok = { v: d.access_token, exp: Date.now() + Number(d.expires_in || 3000) * 1000 };
   return tok.v;
 }
