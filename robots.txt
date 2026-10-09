@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /stats/
 
-Sitemap: https://second-read-three.vercel.app/sitemap.xml
+Sitemap: https://essaywiz.app/sitemap.xml
