@@ -15,7 +15,7 @@
 //   KV_REST_API_URL + KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)
 //                       a free Upstash Redis store; keeps usage counts and Pro status accurate across servers and devices
 
-import { dbEnabled, select, userHash } from "./_db.js";
+import { dbEnabled, select, insert, userHash } from "./_db.js";
 
 const env = k => String(process.env[k] || "").trim().replace(/^["']|["']$/g, "").trim();
 export const billingEnabled = () => !!(env("PAYPAL_CLIENT_ID") && env("PAYPAL_SECRET"));
@@ -156,6 +156,7 @@ async function checkSubscription(id, user) {
 // For the owner's /stats page: a subscription's status and the payments PayPal actually
 // received (gross, PayPal fee, net) since a date.
 export async function subscriptionReport(id, sinceISO) {
+  if (billingEnabled() && /^PASS-[MY]-/.test(String(id || ""))) return passReport(id, sinceISO);
   if (!billingEnabled() || !/^I-[A-Z0-9]{6,30}$/.test(String(id || ""))) return null;
   const s = await pp("/v1/billing/subscriptions/" + id);
   if (!s.ok) return null;
@@ -179,6 +180,7 @@ export async function proStatus(user, hintId) {
     try { const s = await checkSubscription(id, user); if (s) { info = s; if (s.pro) break; } } catch (e) { console.error("subscription check failed", e && (e.message || e.code)); }
   }
   if (info.pro) await kv(["SET", "sr:sub:" + user.sub, info.id]);
+  else { try { const p = await passStatus(user); if (p) info = p; } catch (e) { console.error("pass check failed", e && e.message); } }
   proCache.set(user.sub, { info, until: Date.now() + (info.pro ? 30 * 60e3 : 5 * 60e3) });
   if (proCache.size > 5000) proCache.clear();
   return info;
@@ -256,4 +258,62 @@ export async function status(user, hintId) {
     paypalClientId: env("PAYPAL_CLIENT_ID"), planId: await getPlanId(), yearlyPlanId: await getYearPlanId().catch(e => { console.error("yearly plan unavailable", e && e.code); return null; }),
     manageUrl: env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://www.sandbox.paypal.com/myaccount/autopay/" : "https://www.paypal.com/myaccount/autopay/",
   };
+}
+
+/* ---------- Apple Pay: one-time Pro passes (PayPal doesn't support Apple Pay for subscriptions) ---------- */
+// A pass is a PayPal order. Once captured it's stored in the subscriptions table as "PASS-M-<order>" (31 days)
+// or "PASS-Y-<order>" (366 days); passes bought back to back add up.
+const PASS_DAYS = { month: 31, year: 366 };
+const passPrice = period => period === "year" ? YEAR_PRICE() : PRICE();
+
+export async function createPass(user, period) {
+  if (!PASS_DAYS[period]) throw { status: 400, code: "bad_period" };
+  const r = await pp("/v2/checkout/orders", { method: "POST", body: JSON.stringify({
+    intent: "CAPTURE",
+    purchase_units: [{ reference_id: "pass-" + period, custom_id: user.sub,
+      description: period === "year" ? "EssayWiz Pro, 1 year (one-time payment)" : "EssayWiz Pro, 1 month (one-time payment)",
+      amount: { currency_code: "USD", value: passPrice(period) } }],
+  }) });
+  if (!r.ok) { console.error("PayPal order create failed", r.status, r.d); throw { status: 502, code: "billing_error" }; }
+  return r.d.id;
+}
+
+export async function capturePass(user, orderId) {
+  if (!/^[A-Z0-9]{10,30}$/.test(String(orderId || ""))) throw { status: 400, code: "bad_order" };
+  let o = await pp("/v2/checkout/orders/" + orderId);
+  if (!o.ok) throw { status: 400, code: "bad_order" };
+  if (o.d.status !== "COMPLETED") {
+    const c = await pp(`/v2/checkout/orders/${orderId}/capture`, { method: "POST", body: "{}" });
+    if (!c.ok) console.error("PayPal capture failed", c.status, c.d && (c.d.name || c.d.message), c.d && c.d.details);
+    o = await pp("/v2/checkout/orders/" + orderId);
+  }
+  const u = ((o.d && o.d.purchase_units) || [])[0] || {};
+  const period = String(u.reference_id || "").replace(/^pass-/, "");
+  const cap = ((u.payments || {}).captures || [])[0];
+  const paid = cap && cap.status === "COMPLETED" && Number(cap.amount && cap.amount.value) >= Number(passPrice(period)) - 0.001;
+  if (o.d.status !== "COMPLETED" || !paid || !PASS_DAYS[period] || String(u.custom_id || "") !== String(user.sub)) throw { status: 402, code: "payment_failed" };
+  const id = `PASS-${period === "year" ? "Y" : "M"}-${orderId}`;
+  const saved = await insert("subscriptions", { id, user_hash: userHash(user) }, { onConflict: "id" });
+  if (saved === null) console.error("PASS NOT SAVED: paid order", orderId, "for", userHash(user), "- add it to the subscriptions table by hand");
+  await kv(["SET", "sr:pass:" + user.sub, String(Date.now() + PASS_DAYS[period] * 864e5)]);
+  proCache.delete(user.sub);
+  return period;
+}
+
+async function passStatus(user) {
+  let until = 0;
+  const rows = await select("subscriptions", `select=id,created_at&user_hash=eq.${userHash(user)}&id=like.PASS-*&order=created_at.asc&limit=100`);
+  for (const r of rows) until = Math.max(until, Date.parse(r.created_at)) + (r.id.startsWith("PASS-Y-") ? PASS_DAYS.year : PASS_DAYS.month) * 864e5;
+  until = Math.max(until, Number(await kv(["GET", "sr:pass:" + user.sub]) || 0));   // backup if the database write failed
+  return until > Date.now() ? { pro: true, status: "PASS", paidUntil: until, id: null, period: null } : null;
+}
+
+async function passReport(id, sinceISO) {
+  const o = await pp("/v2/checkout/orders/" + id.slice(7));
+  if (!o.ok) return null;
+  const cap = ((((o.d.purchase_units || [])[0] || {}).payments || {}).captures || [])[0];
+  if (!cap || cap.status !== "COMPLETED" || cap.create_time < sinceISO) return { id, status: "PASS", payments: [] };
+  const b = cap.seller_receivable_breakdown || {}, num = x => Number((x && x.value) || 0);
+  const gross = num(b.gross_amount) || num(cap.amount), fee = num(b.paypal_fee);
+  return { id, status: "PASS", payments: [{ time: cap.create_time, gross, fee, net: num(b.net_amount) || gross - fee, currency: (cap.amount || {}).currency_code || "USD" }] };
 }

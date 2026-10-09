@@ -54,6 +54,7 @@ export async function logEvent(req, res, m) {
       jobs.push(insert("subscriptions", { id: String(body.subscriptionID).slice(0, 40), user_hash: uh }, { onConflict: "id" }));
       jobs.push(insert("events", { tool: "billing", mode: "pro_signup", status, user_hash: uh, plan }));
     }
+    if (m.mode === "pass_capture" && status === 200) jobs.push(insert("events", { tool: "billing", mode: "pro_signup", status, user_hash: uh, plan }));
   } else {
     jobs.push(insert("events", {
       tool: m.tool, mode: m.mode.slice(0, 30) || null, status, user_hash: uh, plan,
