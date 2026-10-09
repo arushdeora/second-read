@@ -154,6 +154,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 .pro-box .period button{flex:1;border:0;background:transparent;border-radius:99px;padding:7px 10px;font-size:.88rem;color:var(--muted);justify-content:center}
 .pro-box .period button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(21,35,63,.15)}
 .pro-box .period b{color:#2b7a57;font-size:.78rem;margin-left:4px}
+apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--apple-pay-button-border-radius:23px;display:block;margin:10px 0 4px}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
 
@@ -291,8 +292,8 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <li>Unlimited humanizing (free plan: 2 a day) and the Citation Generator</li>
       <li>Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
     </ul>
-    <div id="proBody"><div id="ppbtn"></div></div>
-    <p class="fine"><b>Pay any way you like:</b> PayPal, or any debit or credit card (Visa, Mastercard, American Express, Discover). Payments are processed securely by PayPal, so we never see your card details.</p>
+    <div id="proBody"><div id="ppbtn"></div><div id="applepay" hidden></div></div>
+    <p class="fine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.</p>
     <button class="ghost" id="proClose" type="button">Not now</button>
   </div>
 </div>
@@ -643,7 +644,7 @@ async function runCite(){
 const RUN = { check: runCheck, para: runPara, grammar: runGrammar, plag: runPlag, ai: runAI, human: runHuman, cite: runCite };
 
 /* ---------- Word download & upload ---------- */
-function loadScript(src){ return new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = src; sc.onload = ok; sc.onerror = () => bad(new Error("load")); document.head.append(sc); }); }
+function loadScript(src, ns){ return new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = src; if (ns) sc.setAttribute("data-namespace", ns); sc.onload = ok; sc.onerror = () => bad(new Error("load")); document.head.append(sc); }); }
 const xmlEsc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 async function downloadWord(text){
   try {
@@ -768,7 +769,7 @@ async function openPro(why){
   else if (c.pro){
     const until = c.subscriptionStatus !== "ACTIVE" && c.paidUntil ? ` until ${new Date(c.paidUntil).toLocaleDateString()}` : "";
     body.innerHTML = ""; body.append(el("p", null, `You're on Pro${until}. Thank you for supporting EssayWiz!`));
-    const a = el("a", null, "Manage or cancel in PayPal"); a.href = c.manageUrl; a.target = "_blank"; a.rel = "noopener"; body.append(a);
+    if (c.subscriptionStatus !== "PASS"){ const a = el("a", null, "Manage or cancel in PayPal"); a.href = c.manageUrl; a.target = "_blank"; a.rel = "noopener"; body.append(a); }
     return;
   }
   if (bill.ppLoaded || !c.paypalClientId || !c.planId) return;
@@ -790,6 +791,7 @@ async function openPro(why){
       },
       onError: () => setStatus("PayPal couldn't start the payment. Please try again.", true),
     }).render("#ppbtn");
+    setupApplePay(c);
   } catch { $("proBody").append(el("p", null, "PayPal couldn't load. Turn off any ad blocker and refresh the page.")); }
 }
 function showPeriod(){
@@ -799,9 +801,46 @@ function showPeriod(){
   document.querySelector("#pro .period").hidden = !c.yearlyPlanId;
   $("proPrice").textContent = yr ? y.toFixed(2) : String(m);
   $("proUnit").textContent = yr ? "USD / year" : "USD / month";
+  if (bill.apNote) bill.apNote();
   $("proSave").hidden = !yr; $("proSave").textContent = `That's $${(y / 12).toFixed(2)} a month, ${Math.round((1 - y / (m * 12)) * 100)}% less than paying monthly.`;
 }
 document.querySelectorAll("#pro .period button").forEach(b => b.onclick = () => { bill.period = b.dataset.period; showPeriod(); });
+// Apple Pay (Apple devices only). PayPal supports Apple Pay for one-time payments, so it buys a
+// 1-month or 1-year Pro pass that doesn't renew. Hidden unless PayPal has Apple Pay switched on.
+async function setupApplePay(c){
+  if (bill.apLoaded || !/Mac|iPhone|iPad/.test(navigator.userAgent)) return;
+  bill.apLoaded = true;
+  try {
+    await loadScript("https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js");
+    if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) return;
+    await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&components=applepay&currency=USD&intent=capture`, "ppApple");
+    const ap = window.ppApple.Applepay(); const cfg = await ap.config(); if (!cfg.isEligible) return;
+    const box = $("applepay"); if (!box) return;
+    box.innerHTML = '<apple-pay-button buttonstyle="black" type="buy" locale="en-US"></apple-pay-button><p class="fine" id="apNote"></p>'; box.hidden = false;
+    const amount = () => (bill.period === "year" ? Number(c.yearlyPrice || 39.99) : Number(c.price || 5)).toFixed(2);
+    bill.apNote = () => { const n = $("apNote"); if (n) n.textContent = `Apple Pay is a one-time payment of $${amount()} for 1 ${bill.period === "year" ? "year" : "month"} of Pro. It doesn't renew automatically.`; };
+    bill.apNote();
+    box.querySelector("apple-pay-button").addEventListener("click", () => {
+      const period = bill.period === "year" ? "year" : "month";
+      const total = { label: `EssayWiz Pro, 1 ${period}`, type: "final", amount: amount() };
+      const session = new ApplePaySession(4, { countryCode: cfg.countryCode, currencyCode: "USD", merchantCapabilities: cfg.merchantCapabilities, supportedNetworks: cfg.supportedNetworks, total });
+      session.onvalidatemerchant = e => ap.validateMerchant({ validationUrl: e.validationURL }).then(r => session.completeMerchantValidation(r.merchantSession)).catch(() => session.abort());
+      session.onpaymentmethodselected = () => session.completePaymentMethodSelection({ newTotal: total });
+      session.onpaymentauthorized = async e => {
+        try {
+          const { id } = await api("/api/billing", { action: "pass_create", period });
+          await ap.confirmOrder({ orderId: id, token: e.payment.token, billingContact: e.payment.billingContact });
+          const s = await api("/api/billing", { action: "pass_capture", orderID: id });
+          session.completePayment(ApplePaySession.STATUS_SUCCESS);
+          bill.cfg = s; bill.pro = s.pro; renderPlan();
+          $("proBody").innerHTML = ""; $("proBody").append(el("p", null, `You're on Pro until ${new Date(s.paidUntil).toLocaleDateString()}. Enjoy unlimited checks!`));
+          setStatus("Welcome to EssayWiz Pro!");
+        } catch (err) { session.completePayment(ApplePaySession.STATUS_FAILURE); setStatus("Apple Pay didn't go through. Please try again, or pay with PayPal or a card.", true); }
+      };
+      session.begin();
+    });
+  } catch (e) { console.warn("Apple Pay unavailable", e && e.message); }
+}
 $("proClose").onclick = () => { $("pro").hidden = true; };
 $("planPill").onclick = () => openPro();
 $("footPro").onclick = e => { e.preventDefault(); openPro(); };
