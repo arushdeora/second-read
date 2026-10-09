@@ -4,7 +4,7 @@
 //
 // Optional settings:
 //   PAYPAL_ENV          "sandbox" to test with PayPal sandbox accounts (default: live)
-//   PAYPAL_PLAN_ID      use an existing PayPal plan; otherwise a $5/month "Second Read Pro" plan is created automatically
+//   PAYPAL_PLAN_ID      use an existing PayPal plan; otherwise a $5/month "EssayWiz Pro" plan is created automatically
 //   PRO_PRICE           monthly price in USD for the auto-created plan (default 5.00)
 //   OWNER_EMAILS        comma-separated Google emails that always have free, unlimited access (default: the owner)
 //   FREE_WORD_LIMIT     most words a free student can check at once (default 250)
@@ -22,7 +22,7 @@ const FREE_DAILY = () => Number(env("FREE_DAILY_CHECKS") || 40) || 40;
 const PRO = () => Number(env("PRO_DAILY_CREDITS") || 400);
 const PRICE = () => (Number(env("PRO_PRICE") || 5) || 5).toFixed(2);
 const PP = () => env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
-const PLAN_NAME = "Second Read Pro";
+const PLAN_NAME = "EssayWiz Pro";
 
 /* ---------- small key-value store: Upstash Redis REST if configured, else memory ---------- */
 const mem = new Map();
@@ -82,7 +82,7 @@ async function pp(path, opts = {}) {
   return { ok: r.ok, status: r.status, d };
 }
 
-// The $5/month plan: PAYPAL_PLAN_ID, an existing active "Second Read Pro" plan, or a new one.
+// The $5/month plan: PAYPAL_PLAN_ID, an existing active "EssayWiz Pro" plan, or a new one.
 let planId = null;
 export async function getPlanId() {
   if (env("PAYPAL_PLAN_ID")) return env("PAYPAL_PLAN_ID");
@@ -91,12 +91,12 @@ export async function getPlanId() {
   const list = await pp("/v1/billing/plans?page_size=20&total_required=true");
   const found = (list.d.plans || []).find(p => p.name === PLAN_NAME && p.status === "ACTIVE");
   if (found) { planId = found.id; await kv(["SET", "sr:plan", planId]); return planId; }
-  const prod = await pp("/v1/catalogs/products", { method: "POST", headers: { "PayPal-Request-Id": "second-read-pro-product-v1" },
-    body: JSON.stringify({ name: PLAN_NAME, description: "Unlimited access to the Second Read writing tools", type: "SERVICE" }) });
+  const prod = await pp("/v1/catalogs/products", { method: "POST", headers: { "PayPal-Request-Id": "essaywiz-pro-product-v1" },
+    body: JSON.stringify({ name: PLAN_NAME, description: "Unlimited access to the EssayWiz writing tools", type: "SERVICE" }) });
   if (!prod.ok) { console.error("PayPal product create failed", prod.status, prod.d); throw { status: 502, code: "billing_error" }; }
-  const plan = await pp("/v1/billing/plans", { method: "POST", headers: { "PayPal-Request-Id": "second-read-pro-plan-v1-" + PRICE() },
+  const plan = await pp("/v1/billing/plans", { method: "POST", headers: { "PayPal-Request-Id": "essaywiz-pro-plan-v1-" + PRICE() },
     body: JSON.stringify({
-      product_id: prod.d.id, name: PLAN_NAME, description: `Second Read Pro, $${PRICE()} USD per month`, status: "ACTIVE",
+      product_id: prod.d.id, name: PLAN_NAME, description: `EssayWiz Pro, $${PRICE()} USD per month`, status: "ACTIVE",
       billing_cycles: [{ frequency: { interval_unit: "MONTH", interval_count: 1 }, tenure_type: "REGULAR", sequence: 1, total_cycles: 0,
         pricing_scheme: { fixed_price: { value: PRICE(), currency_code: "USD" } } }],
       payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 2 },

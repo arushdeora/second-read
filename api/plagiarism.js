@@ -10,7 +10,7 @@ async function lookupIndex(sentences) {
   if (!cands.length) return [];
   const byHash = new Map(cands.map(s => [keyOf(s.text), s.i]));
   const rows = await select("sources", "select=id,passage_hash,url,title,type,hits&passage_hash=in.(" + [...byHash.keys()].join(",") + ")&limit=50");
-  return rows.map(r => ({ i: byHash.get(r.passage_hash), match: "exact", type: r.type === "book" ? "book" : "web", url: r.url, title: r.title || r.url, note: "Found in Second Read's source index", _id: r.id, _hits: r.hits }));
+  return rows.map(r => ({ i: byHash.get(r.passage_hash), match: "exact", type: r.type === "book" ? "book" : "web", url: r.url, title: r.title || r.url, note: "Found in EssayWiz's source index", _id: r.id, _hits: r.hits }));
 }
 async function saveIndex(sentences, matches, contribute) {
   if (!dbEnabled() || !matches.length) return;

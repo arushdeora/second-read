@@ -1,4 +1,4 @@
-// Second Read's own database (Supabase / Postgres, via its REST API).
+// EssayWiz's own database (Supabase / Postgres, via its REST API).
 // Inactive until SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) are set in Vercel.
 import { createHash } from "node:crypto";
 
@@ -42,7 +42,7 @@ export async function select(table, query) {
   } catch (e) { console.error("db select error", table, e && e.message); return []; }
 }
 
-// Save a student's text for training, only when they ticked "help improve Second Read".
+// Save a student's text for training, only when they ticked "help improve EssayWiz".
 export async function collect(req, body, text, { tool, label = null, origin = "student", modelScore = null } = {}) {
   if (!dbEnabled() || !body || body.contribute !== true) return null;
   const t = String(text || "").trim();

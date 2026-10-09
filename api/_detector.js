@@ -1,4 +1,4 @@
-// Second Read's own AI detector, running inside our own server (no outside AI).
+// EssayWiz's own AI detector, running inside our own server (no outside AI).
 // Logistic regression over hashed word unigrams + bigrams. The featurizer MUST match
 // training/browser_trainer.js exactly, or the scores will be meaningless.
 let model = null, w = null;
