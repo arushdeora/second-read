@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EssayWiz Premium – Check Whole Essays With No Word Limit</title>
-<meta name="description" content="EssayWiz Pro removes the 250-word limit on every tool: plagiarism checker, AI detector, paraphraser, grammar checker and humanizer. $5 USD a month, cancel any time.">
+<meta name="description" content="EssayWiz Pro removes the 200-word limit on every tool and unlocks unlimited humanizing and citations. $5 USD a month or $39.99 a year, cancel any time.">
 <link rel="canonical" href="https://essaywiz.app/premium/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://essaywiz.app/premium/">
 <meta property="og:title" content="EssayWiz Premium – No Word Limit">
-<meta property="og:description" content="Check whole essays at once with EssayWiz Pro. $5 USD a month, cancel any time.">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"EssayWiz Pro","description":"Unlimited words per check on every EssayWiz writing tool.","brand":{"@type":"Brand","name":"EssayWiz"},"offers":[{"@type":"Offer","name":"Free","price":"0","priceCurrency":"USD"},{"@type":"Offer","name":"Pro (monthly)","price":"5.00","priceCurrency":"USD","url":"https://essaywiz.app/premium/"}]}</script>
+<meta property="og:description" content="Check whole essays at once with EssayWiz Pro. $5 USD a month or $39.99 a year.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"EssayWiz Pro","description":"Unlimited words per check on every EssayWiz writing tool.","brand":{"@type":"Brand","name":"EssayWiz"},"offers":[{"@type":"Offer","name":"Free","price":"0","priceCurrency":"USD"},{"@type":"Offer","name":"Pro (monthly)","price":"5.00","priceCurrency":"USD","url":"https://essaywiz.app/premium/"},{"@type":"Offer","name":"Pro (yearly)","price":"39.99","priceCurrency":"USD","url":"https://essaywiz.app/premium/"}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
@@ -33,7 +33,13 @@ a{color:var(--accent2)}
 .icons li{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px;font-size:.88rem;color:var(--muted);text-align:center;line-height:1.25}
 .icons i{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--c,#e8eefb)}
 .icons svg{width:21px;height:21px;fill:none;stroke:var(--s,#1d3a6e);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;max-width:820px;margin:40px auto 0;align-items:start}
+.bill{display:flex;align-items:center;justify-content:center;gap:10px;margin:34px 0 0;font-weight:600}
+.bill span{color:var(--muted)}.bill span.on{color:var(--ink)}
+.bill button{width:50px;height:28px;border-radius:99px;border:0;background:#c9d0db;position:relative;cursor:pointer;padding:0}
+.bill button i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.bill button[aria-checked="true"]{background:var(--good)}.bill button[aria-checked="true"] i{left:25px}
+.bill .save{background:#e6f4ec;color:var(--good)!important;border:1px solid #bfe0cc;border-radius:99px;padding:2px 10px;font-size:.85rem}
+.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;max-width:820px;margin:22px auto 0;align-items:start}
 .plan{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:28px 26px;box-shadow:0 2px 10px rgba(21,35,63,.05)}
 .plan.pro{border:2px solid var(--gold);padding-top:0;overflow:hidden;box-shadow:0 8px 28px rgba(229,154,18,.18)}
 .plan .badge{margin:0 -26px 24px;background:linear-gradient(135deg,#f6c445,#e59a12);color:#3a2600;text-align:center;font-weight:700;font-size:.9rem;padding:8px}
@@ -95,7 +101,7 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
 <section class="hero">
   <span class="tag"><svg class="crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg> EssayWiz Premium</span>
   <h1>Check your whole essay in one go</h1>
-  <p>The free plan stops at 250 words. Pro takes the limit away, so you can check a full assignment at once instead of cutting it into pieces.</p>
+  <p>The free plan stops at 200 words. Pro takes the limit away, so you can check a full assignment at once instead of cutting it into pieces.</p>
 </section>
 
 <section class="inc">
@@ -111,19 +117,22 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
   </ul>
 </section>
 
+<div class="bill" role="group" aria-label="Billing period"><span id="lblM" class="on">Monthly</span><button type="button" id="yearly" role="switch" aria-checked="false" aria-label="Pay yearly"><i></i></button><span id="lblY">Yearly</span><span class="save">Save 33%</span></div>
+
 <section class="plans" aria-label="Plans">
   <div class="plan">
     <h3>Free</h3>
-    <p class="sub">Try every tool on shorter pieces of writing.</p>
+    <p class="sub">Try the tools on shorter pieces of writing.</p>
     <div class="price">$0 <small>USD</small></div>
     <div class="per">Free forever</div>
     <a class="btn" id="freeBtn" href="/">Start free</a>
     <h4>What you get:</h4>
     <ul>
-      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Every tool, up to 250 words per check</li>
-      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Up to 40 checks a day</li>
-      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Citation generator, always free</li>
+      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Up to 200 words per check</li>
+      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Plagiarism, AI detector, grammar and paraphraser</li>
+      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>2 free humanizes a day (200 words each)</li>
       <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Word and PDF upload, Word download</li>
+      <li class="x"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>Citation Generator</li>
       <li class="x"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg>Whole essays in one check</li>
     </ul>
   </div>
@@ -133,20 +142,21 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
     <h3><svg class="crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg> Pro</h3>
     <p class="sub">For full essays, reports and long assignments.</p>
     <div class="price">$<span id="price">5</span> <small>USD</small></div>
-    <div class="per">per month · cancel any time</div>
+    <div class="per" id="per">per month · cancel any time</div>
     <a class="btn gold" id="proBtn" href="/#upgrade">Upgrade to Pro</a>
     <h4>Everything in Free, plus:</h4>
     <ul>
       <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>No word limit:</b> check a whole essay at once</span></li>
       <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Plagiarism check across your full text, with sources</li>
       <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>AI detection sentence by sentence on long work</li>
-      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Paraphrase and humanize whole documents in every mode</li>
+      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span><b>Unlimited humanizing</b> of whole documents</span></li>
+      <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Citation Generator: APA, MLA and Chicago</li>
       <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Many more checks a day (fair use)</li>
       <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Supports a small, student-friendly tool</li>
     </ul>
   </div>
 </section>
-<p class="fine">Pay with PayPal or any debit or credit card. Payments are handled by PayPal, so we never see your card details. Cancel in your PayPal account and keep Pro until the end of the month you paid for.</p>
+<p class="fine">Pay with PayPal or any debit or credit card. Payments are handled by PayPal, so we never see your card details. Cancel in your PayPal account and keep Pro until the end of the month or year you paid for.</p>
 
 <section class="why">
   <h2>Why students go Pro</h2>
@@ -198,15 +208,16 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
 
 <section class="faq">
   <h2>Questions</h2>
-  <details><summary>What's the difference between Free and Pro?</summary><p>Both plans include every tool. Free checks up to 250 words at a time and up to 40 checks a day. Pro removes the word limit and gives you many more checks a day.</p></details>
+  <details><summary>What's the difference between Free and Pro?</summary><p>Free checks up to 200 words at a time, with 2 humanizes a day and no Citation Generator. Pro removes the word limit and unlocks unlimited humanizing and citations.</p></details>
+  <details><summary>Is there a yearly plan?</summary><p>Yes. Pro costs $39.99 USD a year, which works out to $3.33 a month, 33% less than paying monthly. Turn on Yearly above the plans before you click Upgrade.</p></details>
   <details><summary>How do I pay?</summary><p>With PayPal or any debit or credit card (Visa, Mastercard, American Express, Discover). Click Upgrade, sign in with Google, and choose how to pay in the PayPal box.</p></details>
-  <details><summary>How do I cancel?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel EssayWiz Pro. You keep Pro until the end of the month you already paid for.</p></details>
+  <details><summary>How do I cancel?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel EssayWiz Pro. You keep Pro until the end of the month or year you already paid for.</p></details>
   <details><summary>Is my writing saved?</summary><p>No, unless you tick the box to help train EssayWiz. See the <a href="/privacy.html">privacy policy</a>.</p></details>
 </section>
 
 <section class="final">
   <h2>Ready to check your whole essay?</h2>
-  <p>$5 USD a month. Cancel any time.</p>
+  <p>$5 USD a month, or $39.99 a year. Cancel any time.</p>
   <a class="btn gold" href="/#upgrade"><svg class="crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg> Upgrade to Pro</a>
 </section>
 
@@ -214,6 +225,16 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
 </div>
 
 <script>
+// Monthly / yearly switch: updates the Pro price and every Upgrade link.
+let monthly = 5, yearly = 39.99;
+function setPeriod(yr){
+  document.getElementById("yearly").setAttribute("aria-checked", yr);
+  document.getElementById("lblM").className = yr ? "" : "on"; document.getElementById("lblY").className = yr ? "on" : "";
+  document.getElementById("price").textContent = yr ? yearly.toFixed(2) : String(monthly);
+  document.getElementById("per").textContent = yr ? `per year · just $${(yearly / 12).toFixed(2)} a month` : "per month · cancel any time";
+  document.querySelectorAll('a[href^="/#upgrade"]').forEach(a => a.href = yr ? "/#upgrade-yearly" : "/#upgrade");
+}
+document.getElementById("yearly").onclick = e => setPeriod(e.currentTarget.getAttribute("aria-checked") !== "true");
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
   document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.p !== b.dataset.t);
@@ -225,7 +246,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   try {
     const r = await fetch("/api/billing", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok, ...(sid ? { "x-sr-subscription": sid } : {}) }, body: JSON.stringify({ action: "status" }) });
     if (!r.ok) return; const s = await r.json(); if (!s.enabled) return;
-    if (s.price) document.getElementById("price").textContent = String(Number(s.price));
+    if (s.price) monthly = Number(s.price); if (s.yearlyPrice) yearly = Number(s.yearlyPrice);
+    setPeriod(document.getElementById("yearly").getAttribute("aria-checked") === "true");
     const pro = document.getElementById("proBtn"), free = document.getElementById("freeBtn");
     if (s.owner){ pro.textContent = "Preview checkout (owner)"; }
     else if (s.pro){ pro.textContent = "You're on Pro ✓"; pro.className = "btn cur"; pro.removeAttribute("href"); }
