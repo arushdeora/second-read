@@ -150,6 +150,10 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 .pro-box li{margin:4px 0}
 .pro-box #ppbtn{min-height:48px;margin:6px 0}
 .pro-box .fine{font-size:.78rem;color:var(--muted)}
+.pro-box .period{display:flex;background:#eef1f6;border-radius:99px;padding:3px;margin:4px 0 10px}
+.pro-box .period button{flex:1;border:0;background:transparent;border-radius:99px;padding:7px 10px;font-size:.88rem;color:var(--muted);justify-content:center}
+.pro-box .period button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(21,35,63,.15)}
+.pro-box .period b{color:#2b7a57;font-size:.78rem;margin-left:4px}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
 
@@ -205,7 +209,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
       <button data-tool="human"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4-5.5 7-5.5s5.5 1.5 7 5.5"/></svg>Humanizer</button>
       <button data-tool="cite"><svg viewBox="0 0 24 24"><path d="M7 10c-2 0-3 1.3-3 3v3h4v-4H6c0-1 .5-2 2-2zM16 10c-2 0-3 1.3-3 3v3h4v-4h-2c0-1 .5-2 2-2z"/></svg>Citation Generator</button>
     </nav>
-    <div class="foot">Free: 250 words per check.<br><a href="#" id="footPro" hidden>Pro: unlimited words, $5/month<br></a><a href="/premium/">See Premium plans</a><br><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
+    <div class="foot">Free: 200 words per check, 2 humanizes a day.<br><a href="#" id="footPro" hidden>Pro: unlimited words, $5/month or $39.99/year<br></a><a href="/premium/">See Premium plans</a><br><a href="/privacy.html">Privacy policy</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
   </aside>
 
   <main>
@@ -256,7 +260,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
         <div><b><a href="/citation-generator/">Citation Generator</a></b>APA, MLA and Chicago references from a link, DOI, ISBN or book title.</div>
       </div>
       <h2>Questions</h2>
-      <details><summary>Is it free?</summary><p>Yes. The free plan includes every tool for up to 250 words at a time, and citations are always free. EssayWiz Pro removes the word limit for $5 USD a month. You can pay with PayPal or any debit or credit card, and cancel any time.</p></details>
+      <details><summary>Is it free?</summary><p>Yes. The free plan checks up to 200 words at a time and includes 2 free humanizes a day. The Citation Generator is part of EssayWiz Pro. Pro removes the word limit for $5 USD a month, or $39.99 USD a year. You can pay with PayPal or any debit or credit card, and cancel any time.</p></details>
       <details><summary>How do I cancel Pro?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel EssayWiz Pro. You keep Pro until the end of the month you already paid for.</p></details>
       <details><summary>How does the plagiarism check work?</summary><p>It picks your most distinctive sentences and searches the web and book sources such as Google Books, Project Gutenberg and the Internet Archive for the same or nearly the same wording.</p></details>
       <details><summary>How accurate is the AI detector?</summary><p>No AI detector is perfect. Treat the percentage as a guide for revising, not proof of who wrote something.</p></details>
@@ -278,12 +282,14 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 <div class="gate" id="pro" hidden role="dialog" aria-modal="true" aria-labelledby="proH">
   <div class="box pro-box">
     <h2 id="proH">EssayWiz Pro</h2>
-    <div class="price">$<span id="proPrice">5</span> <small>USD / month</small></div>
+    <div class="period" role="group" aria-label="Billing period"><button type="button" data-period="month" aria-pressed="true">Monthly</button><button type="button" data-period="year" aria-pressed="false">Yearly <b>save 33%</b></button></div>
+    <div class="price">$<span id="proPrice">5</span> <small id="proUnit">USD / month</small></div>
+    <p class="fine" id="proSave" hidden></p>
     <p class="why" id="proWhy" hidden></p>
     <ul>
-      <li>No word limit: check whole essays at once (free plan: 250 words)</li>
-      <li>Plagiarism, AI detection, humanizing, paraphrasing and citations</li>
-      <li>Cancel any time in PayPal. You keep access until the month ends.</li>
+      <li>No word limit: check whole essays at once (free plan: 200 words)</li>
+      <li>Unlimited humanizing (free plan: 2 a day) and the Citation Generator</li>
+      <li>Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
     </ul>
     <div id="proBody"><div id="ppbtn"></div></div>
     <p class="fine"><b>Pay any way you like:</b> PayPal, or any debit or credit card (Visa, Mastercard, American Express, Discover). Payments are processed securely by PayPal, so we never see your card details.</p>
@@ -311,7 +317,9 @@ const ERR = {
   too_long: "That text is too long. Use one section at a time (about 3,000 words max).",
   need_login: "Please sign in with Google to continue. It's free to start.",
   need_pro: "Go Pro for $5 USD a month to keep using EssayWiz.",
-  word_limit: "The free plan checks up to 250 words at a time. Go Pro for unlimited words, or check a shorter part.",
+  word_limit: "The free plan checks up to 200 words at a time. Go Pro for unlimited words, or check a shorter part.",
+  pro_only_cite: "The Citation Generator is part of EssayWiz Pro.",
+  humanize_limit: "You've used your 2 free humanizes for today. Go Pro for unlimited humanizing, or come back tomorrow.",
   free_daily_cap: "You've reached today's free fair-use limit. Go Pro for unlimited use, or come back tomorrow.",
   daily_cap: "You've reached today's fair-use limit. It resets at midnight (UTC).",
   billing_error: "Payments are having a problem right now. Please try again later.",
@@ -332,7 +340,7 @@ async function api(path, body, signal){
   } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error" }; }
   const data = await res.json().catch(() => ({}));
   if (res.headers.get("x-sr-pro")){ bill.enabled = true; bill.pro = res.headers.get("x-sr-pro") === "1"; const wl = +res.headers.get("x-sr-word-limit"); if (wl) bill.limit = wl; renderPlan(); }
-  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "word_limit") openPro(overLimitMsg()); throw { code: data.code || "upstream_error" }; }
+  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "word_limit") openPro(overLimitMsg()); if (data.code === "pro_only_cite" || data.code === "humanize_limit") openPro(ERR[data.code]); throw { code: data.code || "upstream_error" }; }
   return data;
 }
 function sentences(text){
@@ -685,9 +693,10 @@ $("signInTop").onclick = openGate;
 $("signOut").onclick = () => { setToken(null); try { google.accounts.id.disableAutoSelect(); } catch {} setStatus("Signed out."); };
 function onCredential(resp){ setToken(resp && resp.credential); if (!signedIn()){ setStatus("Sign-in didn't finish. Please try again.", true); return; } $("gate").hidden = true; setStatus(`Signed in as ${auth.user.name || auth.user.email}.`); refreshBilling(); const next = auth.pending; auth.pending = null; if (next) next(); }
 function requireLogin(fn){ return function(...args){ if (!auth.clientId || signedIn()) return fn.apply(this, args); auth.pending = () => fn.apply(this, args); openGate(); }; }
-$("run").onclick = requireLogin(() => { if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
+$("run").onclick = requireLogin(() => { if (tool === "cite" && freeLimited()){ openPro(ERR.pro_only_cite); return; } if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
 (async function initAuth(){
-  const wantUpgrade = location.hash === "#upgrade";   // read now: selectTool() rewrites the hash
+  const wantUpgrade = /^#upgrade/.test(location.hash);   // read now: selectTool() rewrites the hash
+  if (location.hash === "#upgrade-yearly") bill.period = "year";
   try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
   if (!auth.clientId) return;
   try { setToken(localStorage.getItem("sr_tok")); } catch {}
@@ -726,8 +735,8 @@ $("delMine").onclick = requireLogin(async e => {
   catch (err) { setStatus(errMsg(err), true); }
 });
 
-/* ---------- Free plan: 250 words per check. Pro: $5/month via PayPal, no limit ---------- */
-var bill = { enabled: false, pro: false, limit: 250, cfg: null, ppLoaded: false };
+/* ---------- Free plan: 200 words per check, 2 humanizes a day, no citations. Pro: $5/month or $39.99/year via PayPal ---------- */
+var bill = { enabled: false, pro: false, limit: 200, cfg: null, ppLoaded: false, period: "month" };
 function subId(){ try { return localStorage.getItem("sr_subid") || ""; } catch { return ""; } }
 const freeLimited = () => bill.enabled && !bill.pro;
 const overLimitMsg = () => `The free plan checks up to ${bill.limit} words at a time, and your text has ${words(input.value).length}. Go Pro for unlimited words, or check a shorter part.`;
@@ -743,7 +752,7 @@ async function refreshBilling(){
   if (!signedIn()) return;
   try {
     const s = await api("/api/billing", { action: "status" }); bill.cfg = s; bill.enabled = !!s.enabled;
-    if (s.enabled){ bill.pro = s.pro; bill.limit = s.freeWordLimit || 250; }
+    if (s.enabled){ bill.pro = s.pro; bill.limit = s.freeWordLimit || 200; }
     renderPlan();
   } catch {}
 }
@@ -752,7 +761,7 @@ async function openPro(why){
   if (!bill.cfg) await refreshBilling();
   const c = bill.cfg || {};
   if (!c.enabled){ setStatus("Everything is free right now, so there's nothing to upgrade."); return; }
-  $("proPrice").textContent = String(Number(c.price || 5));
+  showPeriod();
   $("proWhy").hidden = !why; $("proWhy").textContent = why || "";
   $("pro").hidden = false;
   const body = $("proBody");
@@ -769,7 +778,7 @@ async function openPro(why){
     bill.ppLoaded = true;
     paypal.Buttons({
       style: { shape: "pill", color: "gold", layout: "vertical", label: "subscribe" },
-      createSubscription: (d, actions) => actions.subscription.create({ plan_id: c.planId, custom_id: auth.user.sub }),
+      createSubscription: (d, actions) => actions.subscription.create({ plan_id: bill.period === "year" && c.yearlyPlanId ? c.yearlyPlanId : c.planId, custom_id: auth.user.sub }),
       onApprove: async d => {
         try { localStorage.setItem("sr_subid", d.subscriptionID); } catch {}
         body.innerHTML = ""; body.append(el("p", null, "Confirming your subscription with PayPal…"));
@@ -784,6 +793,16 @@ async function openPro(why){
     }).render("#ppbtn");
   } catch { $("proBody").append(el("p", null, "PayPal couldn't load. Turn off any ad blocker and refresh the page.")); }
 }
+function showPeriod(){
+  const c = bill.cfg || {}; if (!c.yearlyPlanId) bill.period = "month";
+  const yr = bill.period === "year", m = Number(c.price || 5), y = Number(c.yearlyPrice || 39.99);
+  document.querySelectorAll("#pro .period button").forEach(b => b.setAttribute("aria-pressed", b.dataset.period === bill.period));
+  document.querySelector("#pro .period").hidden = !c.yearlyPlanId;
+  $("proPrice").textContent = yr ? y.toFixed(2) : String(m);
+  $("proUnit").textContent = yr ? "USD / year" : "USD / month";
+  $("proSave").hidden = !yr; $("proSave").textContent = `That's $${(y / 12).toFixed(2)} a month, ${Math.round((1 - y / (m * 12)) * 100)}% less than paying monthly.`;
+}
+document.querySelectorAll("#pro .period button").forEach(b => b.onclick = () => { bill.period = b.dataset.period; showPeriod(); });
 $("proClose").onclick = () => { $("pro").hidden = true; };
 $("planPill").onclick = () => openPro();
 $("footPro").onclick = e => { e.preventDefault(); openPro(); };
