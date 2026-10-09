@@ -695,13 +695,12 @@ function onCredential(resp){ setToken(resp && resp.credential); if (!signedIn())
 function requireLogin(fn){ return function(...args){ if (!auth.clientId || signedIn()) return fn.apply(this, args); auth.pending = () => fn.apply(this, args); openGate(); }; }
 $("run").onclick = requireLogin(() => { if (tool === "cite" && freeLimited()){ openPro(ERR.pro_only_cite); return; } if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
 (async function initAuth(){
-  const wantUpgrade = /^#upgrade/.test(location.hash);   // read now: selectTool() rewrites the hash
-  if (location.hash === "#upgrade-yearly") bill.period = "year";
+  const wantUpgrade = /^#upgrade/.test(location.hash), wantYearly = location.hash === "#upgrade-yearly";   // read now: selectTool() rewrites the hash
   try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
   if (!auth.clientId) return;
   try { setToken(localStorage.getItem("sr_tok")); } catch {}
   renderAcct(); refreshBilling();
-  if (wantUpgrade) openPro();
+  if (wantUpgrade){ if (wantYearly) bill.period = "year"; openPro(); }
   try {
     await loadScript("https://accounts.google.com/gsi/client");
     google.accounts.id.initialize({ client_id: auth.clientId, callback: onCredential, auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true });
