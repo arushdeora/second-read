@@ -227,7 +227,8 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
     if (!r.ok) return; const s = await r.json(); if (!s.enabled) return;
     if (s.price) document.getElementById("price").textContent = String(Number(s.price));
     const pro = document.getElementById("proBtn"), free = document.getElementById("freeBtn");
-    if (s.pro){ pro.textContent = s.owner ? "Owner · free access" : "You're on Pro ✓"; pro.className = "btn cur"; pro.removeAttribute("href"); }
+    if (s.owner){ pro.textContent = "Preview checkout (owner)"; }
+    else if (s.pro){ pro.textContent = "You're on Pro ✓"; pro.className = "btn cur"; pro.removeAttribute("href"); }
     else { free.textContent = "Your current plan"; free.className = "btn cur"; free.removeAttribute("href"); }
   } catch {}
 })();
