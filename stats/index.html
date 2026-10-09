@@ -96,7 +96,7 @@ function render() {
   $("out").innerHTML = `
     <div class="tiles">
       ${tile("Users", n(s.users), `${n(s.newUsers)} new · ${n(s.activeToday)} today`)}
-      ${tile("Checks run", n(s.checks), `${n(s.words)} words · ${n(s.limitHits)} hit the 250-word limit`)}
+      ${tile("Checks run", n(s.checks), `${n(s.words)} words · ${n(s.limitHits)} hit a free limit`)}
       ${tile("Pro members", n(s.proActive), `${conv} · ${n(s.proSignups)} sign-ups`)}
       ${tile("Revenue (after PayPal fees)", usd(s.net), data.billing ? `${usd(s.gross)} paid − ${usd(s.fees)} fees` : "PayPal not connected")}
       ${tile("Claude cost", usd(s.aiCost, s.aiCost < 1 ? 4 : 2), `${usd(s.costPerCheck, 4)} per check · ${usd(s.ownerAiCost, 4)} from your own tests`)}
