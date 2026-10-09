@@ -65,7 +65,7 @@ async function googleUser(req) {
   } catch (e) { console.error("tokeninfo failed", e); return null; }
 }
 
-// Words a request asks us to process (the free plan allows up to 250 per check).
+// Words a request asks us to process (the free plan allows up to 200 per check).
 function wordsIn(body) {
   if (!body) return 0;
   if (body.action) return 0;                       // billing / feedback calls
@@ -95,7 +95,9 @@ export async function guard(req, res, opts = {}) {
   if (m) { m.words = wordsIn(body); m.mode = String(body.mode || body.action || body.style || ""); }
   try {
     const cost = opts.cost == null ? 1 : opts.cost;
-    const denied = await charge(user, cost, String(req.headers["x-sr-subscription"] || ""), res, wordsIn(body));
+    const path = String(req.url || "");
+    const feature = path.includes("/humanize") ? "humanize" : body.mode === "cite" ? "cite" : "";
+    const denied = await charge(user, cost, String(req.headers["x-sr-subscription"] || ""), res, wordsIn(body), feature);
     if (denied) { res.status(denied.status).json({ code: denied.code }); return null; }
   } catch (e) { console.error("billing check failed", e && (e.message || e.code)); }
   return body || {};

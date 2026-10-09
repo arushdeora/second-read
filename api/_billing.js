@@ -1,4 +1,4 @@
-// Free plan (like QuillBot's): every tool, up to 250 words per check. Pro ($5/month through PayPal): no word limit.
+// Free plan: up to 200 words per check, 2 humanizes a day, no citations. Pro ($5/month or $39.99/year through PayPal): no word limit.
 // Nothing here is active until PAYPAL_CLIENT_ID and PAYPAL_SECRET are set in Vercel:
 // until then every signed-in student can use the tools for free with no limits.
 //
@@ -6,23 +6,30 @@
 //   PAYPAL_ENV          "sandbox" to test with PayPal sandbox accounts (default: live)
 //   PAYPAL_PLAN_ID      use an existing PayPal plan; otherwise a $5/month "EssayWiz Pro" plan is created automatically
 //   PRO_PRICE           monthly price in USD for the auto-created plan (default 5.00)
+//   PRO_YEARLY_PRICE    yearly price in USD for the auto-created "EssayWiz Pro Yearly" plan (default 39.99)
 //   OWNER_EMAILS        comma-separated Google emails that always have free, unlimited access (default: the owner)
-//   FREE_WORD_LIMIT     most words a free student can check at once (default 250)
+//   FREE_WORD_LIMIT     most words a free student can check at once (default 200)
+//   FREE_HUMANIZE_DAILY free humanizes per student per day (default 2)
 //   FREE_DAILY_CHECKS   fair-use cap on free checks per student per day, to protect the AI bill (default 40)
 //   PRO_DAILY_CREDITS   fair-use cap for Pro members per day (default 400)
 //   KV_REST_API_URL + KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)
 //                       a free Upstash Redis store; keeps usage counts and Pro status accurate across servers and devices
 
+import { dbEnabled, select, userHash } from "./_db.js";
+
 const env = k => String(process.env[k] || "").trim().replace(/^["']|["']$/g, "").trim();
 export const billingEnabled = () => !!(env("PAYPAL_CLIENT_ID") && env("PAYPAL_SECRET"));
 const OWNERS = () => (env("OWNER_EMAILS") || "arushdeora24@gmail.com").toLowerCase().split(/[\s,;]+/).filter(Boolean);
 export const isOwner = user => !!(user && user.email && OWNERS().includes(user.email));
-const FREE_WORDS = () => Number(env("FREE_WORD_LIMIT") || 250) || 250;
+const FREE_WORDS = () => Number(env("FREE_WORD_LIMIT") || 200) || 200;
+const FREE_HUMANIZE = () => Number(env("FREE_HUMANIZE_DAILY") || 2);
 const FREE_DAILY = () => Number(env("FREE_DAILY_CHECKS") || 40) || 40;
 const PRO = () => Number(env("PRO_DAILY_CREDITS") || 400);
 const PRICE = () => (Number(env("PRO_PRICE") || 5) || 5).toFixed(2);
+const YEAR_PRICE = () => (Number(env("PRO_YEARLY_PRICE") || 39.99) || 39.99).toFixed(2);
 const PP = () => env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
 const PLAN_NAME = "EssayWiz Pro";
+const YEAR_PLAN_NAME = "EssayWiz Pro Yearly";
 
 /* ---------- small key-value store: Upstash Redis REST if configured, else memory ---------- */
 const mem = new Map();
@@ -106,6 +113,30 @@ export async function getPlanId() {
   return planId;
 }
 
+// The $39.99/year plan: PAYPAL_YEARLY_PLAN_ID, an existing active "EssayWiz Pro Yearly" plan, or a new one.
+let yearPlanId = null;
+export async function getYearPlanId() {
+  if (env("PAYPAL_YEARLY_PLAN_ID")) return env("PAYPAL_YEARLY_PLAN_ID");
+  if (yearPlanId) return yearPlanId;
+  const stored = await kv(["GET", "sr:plan:year"]); if (stored) return (yearPlanId = stored);
+  const list = await pp("/v1/billing/plans?page_size=20&total_required=true");
+  const found = (list.d.plans || []).find(p => p.name === YEAR_PLAN_NAME && p.status === "ACTIVE");
+  if (found) { yearPlanId = found.id; await kv(["SET", "sr:plan:year", yearPlanId]); return yearPlanId; }
+  const prod = await pp("/v1/catalogs/products", { method: "POST", headers: { "PayPal-Request-Id": "essaywiz-pro-product-v1" },
+    body: JSON.stringify({ name: PLAN_NAME, description: "Unlimited access to the EssayWiz writing tools", type: "SERVICE" }) });
+  if (!prod.ok) { console.error("PayPal product create failed", prod.status, prod.d); throw { status: 502, code: "billing_error" }; }
+  const plan = await pp("/v1/billing/plans", { method: "POST", headers: { "PayPal-Request-Id": "essaywiz-pro-yearly-plan-v1-" + YEAR_PRICE() },
+    body: JSON.stringify({
+      product_id: prod.d.id, name: YEAR_PLAN_NAME, description: `EssayWiz Pro, $${YEAR_PRICE()} USD per year`, status: "ACTIVE",
+      billing_cycles: [{ frequency: { interval_unit: "YEAR", interval_count: 1 }, tenure_type: "REGULAR", sequence: 1, total_cycles: 0,
+        pricing_scheme: { fixed_price: { value: YEAR_PRICE(), currency_code: "USD" } } }],
+      payment_preferences: { auto_bill_outstanding: true, payment_failure_threshold: 2 },
+    }) });
+  if (!plan.ok) { console.error("PayPal yearly plan create failed", plan.status, plan.d); throw { status: 502, code: "billing_error" }; }
+  yearPlanId = plan.d.id; await kv(["SET", "sr:plan:year", yearPlanId]);
+  return yearPlanId;
+}
+
 // Check a subscription with PayPal. It counts as Pro while ACTIVE, or after cancelling
 // until the end of the month already paid for.
 async function checkSubscription(id, user) {
@@ -114,12 +145,12 @@ async function checkSubscription(id, user) {
   if (!r.ok) return null;
   const s = r.d;
   if (String(s.custom_id || "") !== String(user.sub)) return null;          // must belong to this Google account
-  const plan = await getPlanId().catch(() => null);
-  if (plan && s.plan_id !== plan) return null;
+  const plans = (await Promise.all([getPlanId().catch(() => null), getYearPlanId().catch(() => null)])).filter(Boolean);
+  if (plans.length && !plans.includes(s.plan_id)) return null;
   const next = s.billing_info && s.billing_info.next_billing_time ? Date.parse(s.billing_info.next_billing_time) : 0;
   const paidUntil = next || 0;
   const pro = s.status === "ACTIVE" || ((s.status === "CANCELLED" || s.status === "SUSPENDED") && paidUntil > Date.now());
-  return { id, pro, status: s.status, paidUntil };
+  return { id, pro, status: s.status, paidUntil, period: s.plan_id === yearPlanId ? "year" : "month" };
 }
 
 // For the owner's /stats page: a subscription's status and the payments PayPal actually
@@ -168,12 +199,22 @@ export async function activate(user, id, tries = 0) {
 }
 
 const day = () => new Date().toISOString().slice(0, 10);
+// Successful humanizes today, counted from the usage log in Supabase, so the free limit
+// holds across servers even without Redis. Returns 0 if the database isn't connected.
+async function humanizedToday(user) {
+  try {
+    if (!dbEnabled()) return 0;
+    const since = day() + "T00:00:00Z";
+    const rows = await select("events", `select=id&tool=eq.humanize&status=eq.200&user_hash=eq.${userHash(user)}&created_at=gte.${encodeURIComponent(since)}&limit=10`);
+    return rows.length;
+  } catch (e) { console.error("humanize count failed", e && e.message); return 0; }
+}
 export async function usage(user) {
   return Number(await kv(["GET", `sr:use:${user.sub}:${day()}`]) || 0);
 }
 
 // Check one request. Returns null if allowed, or an error {status, code}.
-export async function charge(user, cost, hintId, res, words = 0) {
+export async function charge(user, cost, hintId, res, words = 0, feature = "") {
   if (!billingEnabled() || !user || !user.sub || !cost) return null;
   if (isOwner(user)) { res.setHeader("x-sr-pro", "1"); return null; }   // the owner always has free access
   const info = await proStatus(user, hintId);
@@ -186,9 +227,16 @@ export async function charge(user, cost, hintId, res, words = 0) {
     await kv(["INCRBY", key, cost]); await kv(["EXPIRE", key, 2 * 86400]);
     return null;
   }
-  // Free plan: up to FREE_WORDS words per check, plus a daily fair-use cap.
+  // Free plan: no citations, up to FREE_WORDS words per check, FREE_HUMANIZE humanizes a day, plus a daily fair-use cap.
   res.setHeader("x-sr-word-limit", String(FREE_WORDS()));
+  if (feature === "cite") return { status: 402, code: "pro_only_cite" };
   if (words > FREE_WORDS()) return { status: 402, code: "word_limit" };
+  if (feature === "humanize") {
+    const hkey = `sr:hum:${user.sub}:${day()}`;
+    const used = Math.max(Number(await kv(["GET", hkey]) || 0), await humanizedToday(user));
+    if (used >= FREE_HUMANIZE()) return { status: 402, code: "humanize_limit" };
+    await kv(["INCRBY", hkey, 1]); await kv(["EXPIRE", hkey, 2 * 86400]);
+  }
   const key = `sr:free:${user.sub}:${day()}`;
   const used = Number(await kv(["GET", key]) || 0);
   if (used + 1 > FREE_DAILY()) return { status: 429, code: "free_daily_cap" };
@@ -203,8 +251,9 @@ export async function status(user, hintId) {
   return {
     owner,
     enabled: true, pro: !!info.pro, subscriptionStatus: info.status || null, paidUntil: info.paidUntil || null,
-    wordLimit: info.pro ? null : FREE_WORDS(), freeWordLimit: FREE_WORDS(), price: PRICE(),
-    paypalClientId: env("PAYPAL_CLIENT_ID"), planId: await getPlanId(),
+    wordLimit: info.pro ? null : FREE_WORDS(), freeWordLimit: FREE_WORDS(), freeHumanizeDaily: FREE_HUMANIZE(),
+    price: PRICE(), yearlyPrice: YEAR_PRICE(), period: info.period || null,
+    paypalClientId: env("PAYPAL_CLIENT_ID"), planId: await getPlanId(), yearlyPlanId: await getYearPlanId().catch(e => { console.error("yearly plan unavailable", e && e.code); return null; }),
     manageUrl: env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://www.sandbox.paypal.com/myaccount/autopay/" : "https://www.paypal.com/myaccount/autopay/",
   };
 }
