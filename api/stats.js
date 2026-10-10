@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     let gross = 0, fees = 0, net = 0, proActive = 0; const currencies = new Set(), subStatus = {}, subList = [];
     if (billingEnabled()) {
       const reports = await Promise.all(subs.slice(0, 100).map(s => subscriptionReport(s.id, sinceISO).catch(() => null)));
-      subList.push(...reports.filter(Boolean).map(r => ({ id: r.id.slice(0, 6) + "…", status: r.status, plan: r.plan || null, lastPayment: r.lastPayment || null, nextBilling: r.nextBilling || null })));
+      subList.push(...reports.filter(Boolean).map(r => ({ id: r.id.slice(0, 6) + "…", status: r.status, plan: r.plan || null, lastPayment: r.lastPayment || null, nextBilling: r.nextBilling || null, check: r.check || null })));
       for (const r of reports.filter(Boolean)) {
         if (r.status === "ACTIVE") proActive++;
         subStatus[r.status] = (subStatus[r.status] || 0) + 1;

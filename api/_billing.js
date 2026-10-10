@@ -174,7 +174,15 @@ export async function subscriptionReport(id, sinceISO) {
     return { time: x.time, gross: num(b.gross_amount), fee: num(b.fee_amount), net: num(b.net_amount) || num(b.gross_amount) - num(b.fee_amount), currency: (b.gross_amount || {}).currency_code || "USD" };
   });
   const bi = s.d.billing_info || {};
-  return { id, status: s.d.status, plan: s.d.plan_id, startTime: s.d.start_time || s.d.create_time || null,
+  // Owner diagnostics: run the same Pro check the site runs when this subscriber signs in.
+  let check = null;
+  try {
+    const who = { sub: String(s.d.custom_id || "") };
+    const c = who.sub ? await checkSubscription(id, who) : null;
+    const rows = who.sub ? await select("subscriptions", `select=id&user_hash=eq.${userHash(who)}&id=eq.${id}`) : [];
+    check = { hasGoogleId: !!who.sub, proWhenSignedIn: !!(c && c.pro), paidUntil: c && c.paidUntil ? new Date(c.paidUntil).toISOString() : null, linkedInDatabase: rows.length > 0 };
+  } catch (e) { check = { error: e && (e.message || e.code) }; }
+  return { id, status: s.d.status, plan: s.d.plan_id, check, startTime: s.d.start_time || s.d.create_time || null,
     lastPayment: (bi.last_payment || {}).time || null, nextBilling: bi.next_billing_time || null, payments };
 }
 
