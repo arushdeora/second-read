@@ -57,6 +57,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--accent)}
 .rv{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.rv-avg{display:flex;flex-direction:column;align-items:center;min-width:90px}.rv-avg b{font:700 2.2rem/1 var(--display)}
 .rv-s{color:#f2b01e;letter-spacing:1px}.rv-bars{flex:1;min-width:180px}.rv-row{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted)}.rv-bar{flex:1;height:8px;background:var(--line);border-radius:5px;overflow:hidden}.rv-bar i{display:block;height:100%;background:#f2b01e}
 .rv-list{list-style:none;padding:0;margin:0}.rv-list li{border-top:1px solid var(--line);padding:10px 0}.rv-list p{margin:4px 0 0}
+.rv-act{display:flex;align-items:center;gap:10px;margin-top:6px;font-size:.85rem}.rv-act button{font:600 .82rem var(--body);border:1px solid var(--line);background:var(--paper);border-radius:99px;padding:4px 12px;cursor:pointer;color:var(--muted)}.rv-act .rv-ok{background:var(--good);border-color:var(--good);color:#fff}.rv-on{color:var(--good);font-weight:600}
 @media(max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:1.3rem}.tile .v{font-size:1.4rem}}
 </style>
 </head>
@@ -169,6 +170,13 @@ function render() {
       <p class="note">Claude cost is estimated from the tokens each request used and Anthropic's published prices; your Anthropic Console shows the exact bill. Revenue comes straight from PayPal. Numbers start from when tracking was switched on.</p></div>`;
   document.querySelectorAll("[data-m]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.m === metric); b.onclick = () => { metric = b.dataset.m; render(); }; });
   drawChart();
+  document.querySelectorAll("[data-rv]").forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = "Saving…";
+    try {
+      const r = await fetch("/api/reviews", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token() }, body: JSON.stringify({ action: b.dataset.a, id: +b.dataset.rv }) });
+      if (!r.ok) throw 0; load(true);
+    } catch { b.disabled = false; b.textContent = "Try again"; }
+  });
 }
 
 function reviewsCard() {
@@ -176,8 +184,8 @@ function reviewsCard() {
   if (!r.count) return `<div class="card"><h2>Reviews</h2><p class="note">No reviews yet. Users are asked for one after they use a tool.</p></div>`;
   const star = k => "★".repeat(k) + "☆".repeat(5 - k);
   const bars = r.stars.map(s => `<div class="rv-row"><span>${s.stars}★</span><div class="rv-bar"><i style="width:${r.count ? s.count / r.count * 100 : 0}%"></i></div><span>${s.count}</span></div>`).join("");
-  const list = r.latest.map(x => `<li><div><span class="rv-s">${star(x.stars)}</span> <span class="note">${new Date(x.at).toLocaleDateString()} · ${esc(TOOL_NAMES[{ check: "analyze", para: "rewrite", grammar: "review", plag: "plagiarism", ai: "analyze", human: "humanize", cite: "cite" }[x.tool]] || x.tool)}</span></div>${x.comment ? `<p>${esc(x.comment)}</p>` : ""}</li>`).join("");
-  return `<div class="card"><h2>Reviews</h2><div class="rv"><div class="rv-avg"><b>${r.average.toFixed(1)}</b><span class="rv-s">${star(Math.round(r.average))}</span><span class="note">${n(r.count)} review${r.count === 1 ? "" : "s"}</span></div><div class="rv-bars">${bars}</div></div><ul class="rv-list">${list}</ul></div>`;
+  const list = r.latest.map(x => `<li><div><span class="rv-s">${star(x.stars)}</span> <span class="note">${new Date(x.at).toLocaleDateString()} · ${esc(TOOL_NAMES[{ check: "analyze", para: "rewrite", grammar: "review", plag: "plagiarism", ai: "analyze", human: "humanize", cite: "cite" }[x.tool]] || x.tool)}</span></div>${x.comment ? `<p>${esc(x.comment)}</p>` : ""}<div class="rv-act">${x.approved ? `<span class="rv-on">✓ On the website</span><button data-rv="${x.id}" data-a="hide">Hide</button>` : x.comment ? `<button class="rv-ok" data-rv="${x.id}" data-a="approve">Show on website</button>` : `<span class="note">No comment, so it isn't shown on the website</span>`}</div></li>`).join("");
+  return `<div class="card"><h2>Reviews</h2><div class="rv"><div class="rv-avg"><b>${r.average.toFixed(1)}</b><span class="rv-s">${star(Math.round(r.average))}</span><span class="note">${n(r.count)} review${r.count === 1 ? "" : "s"} · ${n(r.approved || 0)} on website</span></div><div class="rv-bars">${bars}</div></div><ul class="rv-list">${list}</ul></div>`;
 }
 function toolTable() {
   if (!data.tools.length) return `<p class="note">No checks yet in this period.</p>`;
