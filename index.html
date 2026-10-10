@@ -168,6 +168,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 .says-grid figure{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
 .says-grid .st{color:#f2b01e;letter-spacing:1px}.says-grid blockquote{margin:6px 0 8px;color:#2b3550}.says-grid figcaption{font-size:.82rem;color:var(--muted)}
 .says .avg{color:var(--muted);font-size:.9rem;margin:-4px 0 10px}
+.pro-box .once{display:flex;gap:8px;align-items:flex-start;font-size:.86rem;color:var(--muted);margin:0 0 8px;cursor:pointer}.pro-box .once input{margin-top:3px}.pro-box .once b{color:var(--ink)}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
 
@@ -298,6 +299,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
   <div class="box pro-box">
     <h2 id="proH">EssayWiz Pro</h2>
     <div class="period" role="group" aria-label="Billing period"><button type="button" data-period="month" aria-pressed="true">Monthly</button><button type="button" data-period="year" aria-pressed="false">Yearly <b>save 33%</b></button></div>
+    <label class="once"><input type="checkbox" id="payOnce"> <span><b>Pay once, no auto-renew.</b> You won't be charged again.</span></label>
     <div class="price">$<span id="proPrice">5</span> <small id="proUnit">USD / month</small></div>
     <p class="fine" id="proSave" hidden></p>
     <p class="why" id="proWhy" hidden></p>
@@ -306,7 +308,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
       <li>Unlimited humanizing (free plan: 2 a day) and the Citation Generator</li>
       <li>Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
     </ul>
-    <div id="proBody"><div id="ppbtn"></div><div id="applepay" hidden></div></div>
+    <div id="proBody"><div id="ppbtn"></div><div id="ppOnce" hidden></div><div id="applepay" hidden></div></div>
     <p class="fine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.</p>
     <button class="ghost" id="proClose" type="button">Not now</button>
   </div>
@@ -852,6 +854,7 @@ async function openPro(why){
       },
       onError: () => setStatus("PayPal couldn't start the payment. Please try again.", true),
     }).render("#ppbtn");
+    setupOnce(c);
     setupApplePay(c);
   } catch { $("proBody").append(el("p", null, "PayPal couldn't load. Turn off any ad blocker and refresh the page.")); }
 }
@@ -863,6 +866,9 @@ function showPeriod(){
   $("proPrice").textContent = yr ? y.toFixed(2) : String(m);
   $("proUnit").textContent = yr ? "USD / year" : "USD / month";
   if (bill.apNote) bill.apNote();
+  const once = $("payOnce") && $("payOnce").checked;
+  $("ppbtn").hidden = once; $("ppOnce").hidden = !once;
+  $("proUnit").textContent = once ? (yr ? "USD for 1 year" : "USD for 1 month") : (yr ? "USD / year" : "USD / month");
   $("proSave").hidden = !yr; $("proSave").textContent = `That's $${(y / 12).toFixed(2)} a month, ${Math.round((1 - y / (m * 12)) * 100)}% less than paying monthly.`;
 }
 document.querySelectorAll("#pro .period button").forEach(b => b.onclick = () => { bill.period = b.dataset.period; showPeriod(); });
@@ -902,6 +908,28 @@ async function setupApplePay(c){
     });
   } catch (e) { console.warn("Apple Pay unavailable", e && e.message); }
 }
+// "Pay once": a one-time PayPal or card payment for 1 month or 1 year of Pro that never renews.
+async function setupOnce(c){
+  if (bill.onceLoaded) return; bill.onceLoaded = true;
+  try {
+    await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&currency=USD&intent=capture&enable-funding=card&disable-funding=paylater`, "ppOnce");
+    window.ppOnce.Buttons({
+      style: { shape: "pill", color: "gold", layout: "vertical", label: "pay" },
+      createOrder: async () => (await api("/api/billing", { action: "pass_create", period: bill.period === "year" ? "year" : "month" })).id,
+      onApprove: async d => {
+        const body = $("proBody"); body.innerHTML = ""; body.append(el("p", null, "Confirming your payment with PayPal…"));
+        try {
+          const s = await api("/api/billing", { action: "pass_capture", orderID: d.orderID });
+          bill.cfg = s; bill.pro = s.pro; renderPlan();
+          body.innerHTML = ""; body.append(el("p", null, `You're on Pro until ${new Date(s.paidUntil).toLocaleDateString()}. It won't renew, so you won't be charged again.`));
+          setStatus("Welcome to EssayWiz Pro!");
+        } catch (e) { body.innerHTML = ""; body.append(el("p", null, "We couldn't confirm the payment. If money left your account, email us and we'll switch on Pro right away.")); }
+      },
+      onError: () => setStatus("PayPal couldn't start the payment. Please try again.", true),
+    }).render("#ppOnce");
+  } catch { /* the subscription buttons still work */ }
+}
+$("payOnce").onchange = showPeriod;
 $("proClose").onclick = () => { $("pro").hidden = true; };
 $("planPill").onclick = () => openPro();
 $("footPro").onclick = e => { e.preventDefault(); openPro(); };
