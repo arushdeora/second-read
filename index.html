@@ -155,6 +155,15 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 .pro-box .period button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(21,35,63,.15)}
 .pro-box .period b{color:#2b7a57;font-size:.78rem;margin-left:4px}
 apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--apple-pay-button-border-radius:23px;display:block;margin:10px 0 4px}
+.review{position:fixed;right:16px;bottom:16px;z-index:40;width:min(340px,calc(100vw - 32px));background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;box-shadow:0 10px 30px rgba(21,35,63,.18);animation:pop .25s ease-out}
+@keyframes pop{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.review b{font:700 1.1rem var(--display)}.review p{margin:4px 0 8px;color:var(--muted);font-size:.9rem}
+.review .x{position:absolute;top:6px;right:6px;border:0;background:none;font-size:1.3rem;color:var(--muted);padding:4px 8px}
+.review .stars{display:flex;gap:4px;margin:2px 0 10px}
+.review .stars button{border:0;background:none;padding:0 2px;font-size:2rem;line-height:1;color:#d3d9e3;cursor:pointer}
+.review .stars button.on{color:#f2b01e}
+.review textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:.92rem;resize:vertical;background:var(--soft);color:var(--ink)}
+.review .ra{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
 
@@ -451,7 +460,7 @@ function resultText(host, title, base, text, note){
 function needText(min = 3){ const t = input.value.replace(/\r\n/g, "\n"); if (words(t).length < min){ setStatus(min > 3 ? `Paste at least a few sentences (${min}+ words).` : "Type or paste some text first.", true); return null; } return t; }
 async function step(host, msg, fn){
   ctl = new AbortController(); busy(true); setStatus(msg);
-  try { await fn(ctl.signal); addFeedback(host); }
+  try { await fn(ctl.signal); addFeedback(host); setTimeout(askReview, 1800); }
   catch (e) { setStatus(e && e.code === "cancelled" ? "Stopped." : errMsg(e), !(e && e.code === "cancelled")); }
   finally { busy(false); }
 }
@@ -708,6 +717,33 @@ $("run").onclick = requireLogin(() => { if (tool === "cite" && freeLimited()){ o
     auth.ready = true; if (!$("gate").hidden) openGate(); if (!signedIn()) google.accounts.id.prompt();
   } catch { setStatus("Google sign-in couldn't load. Refresh the page.", true); }
 })();
+
+/* ---------- Site review: asked once, after someone has used a tool ---------- */
+function askReview(){
+  let st = {}; try { st = JSON.parse(localStorage.getItem("sr_review") || "{}"); } catch {}
+  if (st.done || (st.later && Date.now() - st.later < 3 * 864e5) || !signedIn() || $("review")) return;
+  const save = v => { try { localStorage.setItem("sr_review", JSON.stringify(v)); } catch {} };
+  const box = el("div", "review"); box.id = "review"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "Rate EssayWiz");
+  box.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><b>How was EssayWiz?</b><p>Your review helps us make it better.</p>
+    <div class="stars" role="radiogroup" aria-label="Stars">${[1,2,3,4,5].map(i => `<button type="button" role="radio" aria-checked="false" data-s="${i}" aria-label="${i} star${i > 1 ? "s" : ""}">★</button>`).join("")}</div>
+    <textarea maxlength="1000" rows="3" placeholder="What did you like? What should we improve? (optional)"></textarea>
+    <div class="ra"><button type="button" class="ghost later">Not now</button><button type="button" class="primary send" disabled>Send review</button></div>`;
+  document.body.append(box);
+  let stars = 0; const btns = box.querySelectorAll(".stars button");
+  const paint = n => btns.forEach(b => b.classList.toggle("on", +b.dataset.s <= n));
+  btns.forEach(b => { b.onmouseenter = () => paint(+b.dataset.s); b.onclick = () => { stars = +b.dataset.s; btns.forEach(x => x.setAttribute("aria-checked", x === b)); box.querySelector(".send").disabled = false; paint(stars); }; });
+  box.querySelector(".stars").onmouseleave = () => paint(stars);
+  const later = () => { save({ later: Date.now() }); box.remove(); };
+  box.querySelector(".x").onclick = later; box.querySelector(".later").onclick = later;
+  box.querySelector(".send").onclick = async () => {
+    const comment = box.querySelector("textarea").value.trim();
+    box.querySelector(".send").disabled = true;
+    try { await api("/api/feedback", { tool, kind: "review", score: stars, comment }); } catch {}
+    save({ done: Date.now() });
+    box.innerHTML = `<b>Thank you!</b><p>${stars >= 4 ? "We're glad EssayWiz helped. Tell a friend who writes essays!" : "Thanks for telling us. We'll use this to improve EssayWiz."}</p>`;
+    setTimeout(() => box.remove(), 3500);
+  };
+}
 
 /* ---------- Training data: consent + feedback ---------- */
 function contributing(){ return $("contrib").checked; }
