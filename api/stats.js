@@ -53,9 +53,10 @@ export default async function handler(req, res) {
     }
 
     // Revenue: actual PayPal payments for every subscription we've seen.
-    let gross = 0, fees = 0, net = 0, proActive = 0; const currencies = new Set(), subStatus = {};
+    let gross = 0, fees = 0, net = 0, proActive = 0; const currencies = new Set(), subStatus = {}, subList = [];
     if (billingEnabled()) {
       const reports = await Promise.all(subs.slice(0, 100).map(s => subscriptionReport(s.id, sinceISO).catch(() => null)));
+      subList.push(...reports.filter(Boolean).map(r => ({ id: r.id.slice(0, 6) + "…", status: r.status, plan: r.plan || null, lastPayment: r.lastPayment || null, nextBilling: r.nextBilling || null })));
       for (const r of reports.filter(Boolean)) {
         if (r.status === "ACTIVE") proActive++;
         subStatus[r.status] = (subStatus[r.status] || 0) + 1;
@@ -77,7 +78,7 @@ export default async function handler(req, res) {
         users: allUsers.size, newUsers: Object.values(daily).reduce((n, d) => n + d.newUsers, 0),
         activeToday: today ? today.users.size : 0, totalUsers: firstSeen.size,
         checks, failed, limitHits, words, searches,
-        proActive, proSignups, subscriptionsKnown: subs.length, subStatus,
+        proActive, proSignups, subscriptionsKnown: subs.length, subStatus, subList,
         gross: round(gross), fees: round(fees), net: round(net), currency: [...currencies].join("/") || "USD",
         aiCost: round(aiCost, 4), ownerAiCost: round(ownerCost, 4), costPerCheck: checks ? round(aiCost / checks, 4) : 0,
         fixedMonthly, fixed: round(fixed), profit: round(net - aiCost - fixed),

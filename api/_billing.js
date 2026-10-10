@@ -145,8 +145,9 @@ async function checkSubscription(id, user) {
   if (!r.ok) return null;
   const s = r.d;
   if (String(s.custom_id || "") !== String(user.sub)) return null;          // must belong to this Google account
-  const plans = (await Promise.all([getPlanId().catch(() => null), getYearPlanId().catch(() => null)])).filter(Boolean);
-  if (plans.length && !plans.includes(s.plan_id)) return null;
+  // Any subscription in our PayPal account that carries this Google account's ID counts, including ones
+  // on older plans (the plan was re-created when the site was renamed from Second Read to EssayWiz).
+  await getYearPlanId().catch(() => null);   // so the yearly plan can be recognised below
   const next = s.billing_info && s.billing_info.next_billing_time ? Date.parse(s.billing_info.next_billing_time) : 0;
   // PayPal drops next_billing_time once a subscription is cancelled, so work out the end of the
   // period already paid for from the last payment: one month later (or one year on the yearly plan).
@@ -172,7 +173,9 @@ export async function subscriptionReport(id, sinceISO) {
     const b = x.amount_with_breakdown || {};
     return { time: x.time, gross: num(b.gross_amount), fee: num(b.fee_amount), net: num(b.net_amount) || num(b.gross_amount) - num(b.fee_amount), currency: (b.gross_amount || {}).currency_code || "USD" };
   });
-  return { id, status: s.d.status, startTime: s.d.start_time || s.d.create_time || null, payments };
+  const bi = s.d.billing_info || {};
+  return { id, status: s.d.status, plan: s.d.plan_id, startTime: s.d.start_time || s.d.create_time || null,
+    lastPayment: (bi.last_payment || {}).time || null, nextBilling: bi.next_billing_time || null, payments };
 }
 
 const proCache = new Map();
