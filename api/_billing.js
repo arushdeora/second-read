@@ -174,7 +174,11 @@ const proCache = new Map();
 export async function proStatus(user, hintId) {
   const c = proCache.get(user.sub);
   if (c && c.until > Date.now() && (c.info.pro || !hintId || hintId === c.info.id)) return c.info;
-  const ids = [hintId, await kv(["GET", "sr:sub:" + user.sub])].filter(Boolean);
+  // Look in three places: this browser's saved ID, the server cache, and the database. The database is
+  // what lets Pro follow the student to a new device, a new sign-in, or after the server restarts.
+  let saved = [];
+  try { saved = (await select("subscriptions", `select=id&user_hash=eq.${userHash(user)}&id=like.I-*&order=created_at.desc&limit=5`)).map(r => r.id); } catch (e) { console.error("subscription lookup failed", e && e.message); }
+  const ids = [hintId, await kv(["GET", "sr:sub:" + user.sub]), ...saved].filter(Boolean);
   let info = { pro: false };
   for (const id of [...new Set(ids)]) {
     try { const s = await checkSubscription(id, user); if (s) { info = s; if (s.pro) break; } } catch (e) { console.error("subscription check failed", e && (e.message || e.code)); }
