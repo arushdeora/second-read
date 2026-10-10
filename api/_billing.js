@@ -270,7 +270,8 @@ export async function createPass(user, period) {
   if (!PASS_DAYS[period]) throw { status: 400, code: "bad_period" };
   const r = await pp("/v2/checkout/orders", { method: "POST", body: JSON.stringify({
     intent: "CAPTURE",
-    purchase_units: [{ reference_id: "pass-" + period, custom_id: user.sub,
+    application_context: { brand_name: "EssayWiz", shipping_preference: "NO_SHIPPING" },
+    purchase_units: [{ reference_id: "pass-" + period, custom_id: user.sub, soft_descriptor: "ESSAYWIZ",
       description: period === "year" ? "EssayWiz Pro, 1 year (one-time payment)" : "EssayWiz Pro, 1 month (one-time payment)",
       amount: { currency_code: "USD", value: passPrice(period) } }],
   }) });
