@@ -20,10 +20,11 @@ export default async function handler(req, res) {
     const sinceISO = start.toISOString();
     const dayList = Array.from({ length: days }, (_, i) => new Date(start.getTime() + i * 864e5).toISOString().slice(0, 10));
 
-    const [events, active, subs] = await Promise.all([
+    const [events, active, subs, reviews] = await Promise.all([
       selectAll("events", `select=created_at,tool,mode,status,user_hash,plan,words,cost_usd,searches&created_at=gte.${encodeURIComponent(sinceISO)}&order=created_at.asc`),
       selectAll("active_days", "select=user_hash,day,plan&order=day.asc"),
       selectAll("subscriptions", "select=id,user_hash,created_at&order=created_at.desc", 500),
+      selectAll("feedback", "select=created_at,tool,score,comment&kind=eq.review&order=created_at.desc", 2000),
     ]);
 
     // Users: everyone except the owner. "New" = first day we ever saw them.
@@ -83,6 +84,12 @@ export default async function handler(req, res) {
       daily: dayList.map(d => ({ day: d, users: daily[d].users.size, newUsers: daily[d].newUsers, checks: daily[d].checks, cost: round(daily[d].cost, 4), revenue: round(daily[d].revenue) })),
       tools: Object.values(tools).map(t => ({ ...t, cost: round(t.cost, 4), avgCost: round(t.cost / t.checks, 4) })).sort((a, b) => b.checks - a.checks),
       billing: billingEnabled(),
+      reviews: {
+        count: reviews.length,
+        average: reviews.length ? round(reviews.reduce((n, r) => n + (Number(r.score) || 0), 0) / reviews.length, 1) : 0,
+        stars: [5, 4, 3, 2, 1].map(k => ({ stars: k, count: reviews.filter(r => Number(r.score) === k).length })),
+        latest: reviews.slice(0, 30).map(r => ({ at: r.created_at, tool: r.tool, stars: Number(r.score) || 0, comment: r.comment || "" })),
+      },
     });
   } catch (e) { return fail(res, e); }
 }

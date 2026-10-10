@@ -5,7 +5,7 @@ import { dbEnabled, insert, update, remove, collect, userHash } from "./_db.js";
 // POST { tool, rating: "up"|"down", kind?, comment?, score?, text?, contribute? }
 // Saves feedback. When the student agreed to share their text, it is saved as a training
 // sample too. "wrong_ai" (= "I wrote this myself") labels the text as human.
-const KINDS = new Set(["wrong_ai", "correct_ai", "good", "bad"]);
+const KINDS = new Set(["wrong_ai", "correct_ai", "good", "bad", "review"]);   // "review": site review, score = 1-5 stars
 const TOOLS = new Set(["check", "para", "grammar", "plag", "ai", "human", "cite"]);
 
 export default async function handler(req, res) {
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   }
   await insert("feedback", {
     tool, rating, kind, comment: body.comment ? String(body.comment).slice(0, 1000) : null,
-    score: Number.isFinite(+body.score) ? Math.round(+body.score) : null, user_hash: userHash(req.srUser), sample_id: sampleId,
+    score: Number.isFinite(+body.score) ? (kind === "review" ? Math.min(5, Math.max(1, Math.round(+body.score))) : Math.round(+body.score)) : null, user_hash: userHash(req.srUser), sample_id: sampleId,
   });
   res.status(200).json({ saved: true });
 }
