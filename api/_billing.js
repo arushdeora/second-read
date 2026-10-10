@@ -148,7 +148,12 @@ async function checkSubscription(id, user) {
   const plans = (await Promise.all([getPlanId().catch(() => null), getYearPlanId().catch(() => null)])).filter(Boolean);
   if (plans.length && !plans.includes(s.plan_id)) return null;
   const next = s.billing_info && s.billing_info.next_billing_time ? Date.parse(s.billing_info.next_billing_time) : 0;
-  const paidUntil = next || 0;
+  // PayPal drops next_billing_time once a subscription is cancelled, so work out the end of the
+  // period already paid for from the last payment: one month later (or one year on the yearly plan).
+  const last = s.billing_info && s.billing_info.last_payment && s.billing_info.last_payment.time ? new Date(s.billing_info.last_payment.time) : null;
+  let paidEnd = 0;
+  if (last && !isNaN(last)) { const e = new Date(last); if (s.plan_id === yearPlanId) e.setUTCFullYear(e.getUTCFullYear() + 1); else e.setUTCMonth(e.getUTCMonth() + 1); paidEnd = e.getTime(); }
+  const paidUntil = next || paidEnd;
   const pro = s.status === "ACTIVE" || ((s.status === "CANCELLED" || s.status === "SUSPENDED") && paidUntil > Date.now());
   return { id, pro, status: s.status, paidUntil, period: s.plan_id === yearPlanId ? "year" : "month" };
 }
