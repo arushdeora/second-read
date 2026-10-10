@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       selectAll("events", `select=created_at,tool,mode,status,user_hash,plan,words,cost_usd,searches&created_at=gte.${encodeURIComponent(sinceISO)}&order=created_at.asc`),
       selectAll("active_days", "select=user_hash,day,plan&order=day.asc"),
       selectAll("subscriptions", "select=id,user_hash,created_at&order=created_at.desc", 500),
-      selectAll("feedback", "select=created_at,tool,score,comment&kind=eq.review&order=created_at.desc", 2000),
+      selectAll("feedback", "select=id,created_at,tool,score,comment,kind&kind=in.(review,review_approved)&order=created_at.desc", 2000),
     ]);
 
     // Users: everyone except the owner. "New" = first day we ever saw them.
@@ -88,7 +88,8 @@ export default async function handler(req, res) {
         count: reviews.length,
         average: reviews.length ? round(reviews.reduce((n, r) => n + (Number(r.score) || 0), 0) / reviews.length, 1) : 0,
         stars: [5, 4, 3, 2, 1].map(k => ({ stars: k, count: reviews.filter(r => Number(r.score) === k).length })),
-        latest: reviews.slice(0, 30).map(r => ({ at: r.created_at, tool: r.tool, stars: Number(r.score) || 0, comment: r.comment || "" })),
+        approved: reviews.filter(r => r.kind === "review_approved").length,
+        latest: reviews.slice(0, 50).map(r => ({ id: r.id, at: r.created_at, tool: r.tool, stars: Number(r.score) || 0, comment: r.comment || "", approved: r.kind === "review_approved" })),
       },
     });
   } catch (e) { return fail(res, e); }
