@@ -84,6 +84,11 @@ a{color:var(--accent2)}
 .final{text-align:center;margin:56px 0 0;background:var(--accent);color:#fff;border-radius:18px;padding:34px 20px}
 .final h2{font:700 1.8rem var(--display);margin:0 0 8px}.final p{margin:0 0 18px;color:#d7e0f2}
 .final .btn{display:inline-block;width:auto;padding:13px 30px}
+.wrap2{max-width:1040px;margin:56px auto 0}.says h2{font:700 1.6rem var(--display);text-align:center;margin:0 0 6px}.says .avg{text-align:center}
+.says{margin:26px 0 6px}.says-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.says-grid figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.says-grid .st{color:#f2b01e;letter-spacing:1px}.says-grid blockquote{margin:6px 0 8px;color:#2b3550}.says-grid figcaption{font-size:.82rem;color:var(--muted)}
+.says .avg{color:var(--muted);font-size:.9rem;margin:-4px 0 10px}
 footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;color:var(--muted);font-size:.9rem}footer a{color:var(--muted)}
 @media(max-width:760px){
   .plans{grid-template-columns:1fr}
@@ -206,6 +211,8 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
   </div>
 </section>
 
+<div class="wrap2"><section class="says" id="says" hidden aria-labelledby="saysH"><h2 id="saysH">What students say</h2><p class="avg"></p><div class="says-grid"></div></section></div>
+
 <section class="faq">
   <h2>Questions</h2>
   <details><summary>What's the difference between Free and Pro?</summary><p>Free checks up to 200 words at a time, with 2 humanizes a day and no Citation Generator. Pro removes the word limit and unlocks unlimited humanizing and citations.</p></details>
@@ -235,6 +242,25 @@ function setPeriod(yr){
   document.querySelectorAll('a[href^="/#upgrade"]').forEach(a => a.href = yr ? "/#upgrade-yearly" : "/#upgrade");
 }
 document.getElementById("yearly").onclick = e => setPeriod(e.currentTarget.getAttribute("aria-checked") !== "true");
+/* ---------- What students say: reviews the owner approved ---------- */
+(async function showReviews(){
+  const host = document.getElementById("says"); if (!host) return;
+  try {
+    const { reviews, count, average } = await fetch("/api/reviews").then(r => r.json());
+    if (!reviews || !reviews.length) return;
+    const names = { check: "Essay Check", para: "Paraphraser", grammar: "Grammar Checker", plag: "Plagiarism Checker", ai: "AI Detector", human: "Humanizer", cite: "Citations" };
+    host.querySelector(".avg").textContent = `Rated ${Number(average).toFixed(1)} out of 5 across all ${count} student review${count === 1 ? "" : "s"}`;
+    const grid = host.querySelector(".says-grid");
+    reviews.slice(0, 6).forEach(r => {
+      const f = document.createElement("figure");
+      const st = document.createElement("div"); st.className = "st"; st.textContent = "★".repeat(r.stars) + "☆".repeat(5 - r.stars); st.setAttribute("aria-label", r.stars + " out of 5 stars");
+      const q = document.createElement("blockquote"); q.textContent = "“" + r.comment + "”";
+      const c = document.createElement("figcaption"); c.textContent = `EssayWiz student · ${names[r.tool] || "EssayWiz"} · ${new Date(r.at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+      f.append(st, q, c); grid.append(f);
+    });
+    host.hidden = false;
+  } catch {}
+})();
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
   document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.p !== b.dataset.t);
