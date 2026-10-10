@@ -164,6 +164,10 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 .review .stars button.on{color:#f2b01e}
 .review textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:.92rem;resize:vertical;background:var(--soft);color:var(--ink)}
 .review .ra{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.says{margin:26px 0 6px}.says-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.says-grid figure{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+.says-grid .st{color:#f2b01e;letter-spacing:1px}.says-grid blockquote{margin:6px 0 8px;color:#2b3550}.says-grid figcaption{font-size:.82rem;color:var(--muted)}
+.says .avg{color:var(--muted);font-size:.9rem;margin:-4px 0 10px}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
 
@@ -269,6 +273,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
         <div><b><a href="/ai-humanizer/">AI Humanizer</a></b>Rewrites stiff, robotic drafts so they read naturally, in your own voice.</div>
         <div><b><a href="/citation-generator/">Citation Generator</a></b>APA, MLA and Chicago references from a link, DOI, ISBN or book title.</div>
       </div>
+      <section class="says" id="says" hidden aria-labelledby="saysH"><h2 id="saysH">What students say</h2><p class="avg"></p><div class="says-grid"></div></section>
       <h2>Questions</h2>
       <details><summary>Is it free?</summary><p>Yes. The free plan checks up to 200 words at a time and includes 2 free humanizes a day. The Citation Generator is part of EssayWiz Pro. Pro removes the word limit for $5 USD a month, or $39.99 USD a year. You can pay with PayPal or any debit or credit card, and cancel any time.</p></details>
       <details><summary>How do I cancel Pro?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel EssayWiz Pro. You keep Pro until the end of the month you already paid for.</p></details>
@@ -724,7 +729,7 @@ function askReview(){
   if (st.done || (st.later && Date.now() - st.later < 3 * 864e5) || !signedIn() || $("review")) return;
   const save = v => { try { localStorage.setItem("sr_review", JSON.stringify(v)); } catch {} };
   const box = el("div", "review"); box.id = "review"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "Rate EssayWiz");
-  box.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><b>How was EssayWiz?</b><p>Your review helps us make it better.</p>
+  box.innerHTML = `<button class="x" type="button" aria-label="Close">×</button><b>How was EssayWiz?</b><p>Your review helps us make it better. We may show your comment on our website, without your name.</p>
     <div class="stars" role="radiogroup" aria-label="Stars">${[1,2,3,4,5].map(i => `<button type="button" role="radio" aria-checked="false" data-s="${i}" aria-label="${i} star${i > 1 ? "s" : ""}">★</button>`).join("")}</div>
     <textarea maxlength="1000" rows="3" placeholder="What did you like? What should we improve? (optional)"></textarea>
     <div class="ra"><button type="button" class="ghost later">Not now</button><button type="button" class="primary send" disabled>Send review</button></div>`;
@@ -744,6 +749,26 @@ function askReview(){
     setTimeout(() => box.remove(), 3500);
   };
 }
+
+/* ---------- What students say: reviews the owner approved ---------- */
+(async function showReviews(){
+  const host = document.getElementById("says"); if (!host) return;
+  try {
+    const { reviews, count, average } = await fetch("/api/reviews").then(r => r.json());
+    if (!reviews || !reviews.length) return;
+    const names = { check: "Essay Check", para: "Paraphraser", grammar: "Grammar Checker", plag: "Plagiarism Checker", ai: "AI Detector", human: "Humanizer", cite: "Citations" };
+    host.querySelector(".avg").textContent = `Rated ${Number(average).toFixed(1)} out of 5 across all ${count} student review${count === 1 ? "" : "s"}`;
+    const grid = host.querySelector(".says-grid");
+    reviews.slice(0, 6).forEach(r => {
+      const f = document.createElement("figure");
+      const st = document.createElement("div"); st.className = "st"; st.textContent = "★".repeat(r.stars) + "☆".repeat(5 - r.stars); st.setAttribute("aria-label", r.stars + " out of 5 stars");
+      const q = document.createElement("blockquote"); q.textContent = "“" + r.comment + "”";
+      const c = document.createElement("figcaption"); c.textContent = `EssayWiz student · ${names[r.tool] || "EssayWiz"} · ${new Date(r.at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+      f.append(st, q, c); grid.append(f);
+    });
+    host.hidden = false;
+  } catch {}
+})();
 
 /* ---------- Training data: consent + feedback ---------- */
 function contributing(){ return $("contrib").checked; }
