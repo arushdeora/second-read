@@ -2,18 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Owner stats – EssayWiz</title>
+<title>EssayWiz Stats</title>
+<link rel="manifest" href="/stats/manifest.webmanifest">
+<meta name="theme-color" content="#1d3a6e">
+<link rel="apple-touch-icon" href="/stats/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/stats/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EW Stats">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
 :root{--bg:#f3f5f9;--paper:#fff;--ink:#15233f;--muted:#5b6579;--line:#dde2ea;--soft:#f7f9fc;--accent:#1d3a6e;--bar:#2f6fd6;--good:#2b7a57;--bad:#b3362f;
   --display:"Source Serif 4",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;color-scheme:light}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
-.top{height:56px;background:var(--paper);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 16px}
-.brand{font:700 1.3rem var(--display);color:var(--ink);text-decoration:none}
-main{max-width:1040px;margin:0 auto;padding:22px 16px 48px}
+.top{min-height:56px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top) 16px 0;position:sticky;top:0;z-index:5}
+.top .brand{color:#fff}.live{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;font-weight:600;color:#dfe7f5}
+.live i{width:9px;height:9px;border-radius:50%;background:#7ee2a8;box-shadow:0 0 0 0 rgba(126,226,168,.7);animation:pulse 2s infinite}
+.live.off i{background:#c9d0db;animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(126,226,168,.7)}70%{box-shadow:0 0 0 8px rgba(126,226,168,0)}100%{box-shadow:0 0 0 0 rgba(126,226,168,0)}}
+.today{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.today .tile{background:linear-gradient(135deg,#fff,#eef3fc)}
+.install{background:#fff4dc;border:1px solid #f2d394;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:.92rem}
+#gbtn{margin-top:12px;min-height:44px}
+.brand{font:700 1.25rem var(--display);color:var(--ink);text-decoration:none}
+main{max-width:1040px;margin:0 auto;padding:18px 16px calc(48px + env(safe-area-inset-bottom))}
 h1{font:700 1.6rem var(--display);margin:0 0 4px}h2{font:700 1.1rem var(--display);margin:0 0 10px}
 .sub{color:var(--muted);margin:0 0 18px}
 .bar-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px}
@@ -38,12 +54,13 @@ td.r,th.r{text-align:right}
 .note{color:var(--muted);font-size:.85rem;margin:6px 0 0}
 .msg{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px}
 details summary{cursor:pointer;font-weight:600;color:var(--accent)}
-@media(max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:1.3rem}.tile .v{font-size:1.4rem}}
 </style>
 </head>
 <body>
-<header class="top"><a class="brand" href="/">EssayWiz</a><span class="sub" style="margin:0">Owner stats</span></header>
+<header class="top"><a class="brand" href="/stats/">EssayWiz Stats</a><span class="live off" id="live"><i></i><span id="liveTxt">Offline</span></span></header>
 <main>
+  <div class="install" id="install" hidden></div>
   <h1>Audience, revenue and cost</h1>
   <p class="sub" id="asof">Loading…</p>
   <div class="bar-row">
@@ -69,31 +86,63 @@ function token() {
     return p.exp * 1000 > Date.now() + 30000 ? t : null;
   } catch { return null; }
 }
-function message(html) { $("out").innerHTML = `<div class="msg">${html}</div>`; $("asof").textContent = ""; }
+function message(html) { $("out").innerHTML = `<div class="msg">${html}</div>`; $("asof").textContent = ""; setLive(false); }
 
-async function load() {
-  const t = token();
-  if (!t) return message(`Sign in first. Open <a href="/">the main site</a>, sign in with your owner Google account, then come back to this page.`);
-  $("asof").textContent = "Loading…";
+/* Google sign-in right here, so the home-screen app works on its own. Google tokens last an hour;
+   with auto-select, Google quietly signs you back in when it runs out. */
+const gsi = { id: null, ready: false };
+function loadScript(src){ return new Promise((ok, bad) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = bad; document.head.append(s); }); }
+async function initSignIn(){
+  try { gsi.id = (await fetch("/api/config").then(r => r.json())).googleClientId; } catch {}
+  if (!gsi.id) return;
+  await loadScript("https://accounts.google.com/gsi/client");
+  google.accounts.id.initialize({ client_id: gsi.id, auto_select: true, use_fedcm_for_prompt: true, cancel_on_tap_outside: false,
+    callback: r => { try { localStorage.setItem("sr_tok", r.credential); } catch {} load(); } });
+  gsi.ready = true;
+}
+function askSignIn(text){
+  message(`${text}<div id="gbtn"></div>`);
+  if (!gsi.ready) return;
+  google.accounts.id.renderButton($("gbtn"), { theme: "filled_blue", size: "large", text: "signin_with", shape: "pill" });
+  google.accounts.id.prompt();
+}
+function setLive(on){ $("live").className = on ? "live" : "live off"; $("liveTxt").textContent = on ? "Live" : "Offline"; }
+
+let loading = false, lastOk = 0;
+async function load(quiet) {
+  if (loading) return; const t = token();
+  if (!t) { if (gsi.ready && quiet && data) { google.accounts.id.prompt(); return; } return askSignIn("Sign in with your owner Google account to see your stats."); }
+  loading = true; if (!quiet) $("asof").textContent = "Loading…";
+  try { await fetchStats(t); } finally { loading = false; }
+}
+async function fetchStats(t) {
   try {
     const r = await fetch("/api/stats", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + t }, body: JSON.stringify({ days }) });
     const d = await r.json().catch(() => ({}));
-    if (r.status === 401) return message(`Your sign-in expired. Open <a href="/">the main site</a> to sign in again, then reload.`);
+    if (r.status === 401) { try { localStorage.removeItem("sr_tok"); } catch {} return askSignIn("Your sign-in expired. Sign in again to keep the stats live."); }
     if (r.status === 403) return message("This page is only for the site owner.");
     if (!r.ok) return message("Couldn't load stats (" + esc(d.code || r.status) + "). Try again in a minute.");
     if (d.code === "no_database") return message("Connect the Supabase database (SUPABASE_URL and SUPABASE_SECRET_KEY in Vercel) and run <code>supabase/schema.sql</code> to start tracking.");
-    data = d; render();
-  } catch (e) { message("Couldn't reach the server. Check your connection and refresh."); }
+    data = d; lastOk = Date.now(); render(); setLive(true);
+  } catch (e) { if (data) { setLive(false); $("asof").textContent = "No connection. Showing the last numbers; retrying…"; } else message("Couldn't reach the server. Check your connection and refresh."); }
 }
 
 function tile(k, v, note, cls = "") { return `<div class="tile ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${note}</div></div>`; }
 
 function render() {
   const s = data.summary;
-  $("asof").textContent = `Last ${data.days} days · updated ${new Date(data.generatedAt).toLocaleString()} · your own visits are not counted as users`;
+  $("asof").textContent = `Updated ${new Date(data.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · refreshes every minute · your own visits aren't counted`;
   const profitCls = s.profit > 0 ? "pos" : s.profit < 0 ? "neg" : "";
   const conv = s.users ? (s.proActive / s.users * 100).toFixed(1) + "% of users" : "no users yet";
+  const td = data.daily[data.daily.length - 1] || {};
   $("out").innerHTML = `
+    <h2>Today</h2>
+    <div class="today">
+      ${tile("Users", n(td.users), `${n(td.newUsers)} new`)}
+      ${tile("Checks", n(td.checks), usd(td.cost || 0, 3) + " Claude cost")}
+      ${tile("Revenue", usd(td.revenue || 0), "after fees", (td.revenue || 0) > 0 ? "pos" : "")}
+    </div>
+    <h2>Last ${data.days} days</h2>
     <div class="tiles">
       ${tile("Users", n(s.users), `${n(s.newUsers)} new · ${n(s.activeToday)} today`)}
       ${tile("Checks run", n(s.checks), `${n(s.words)} words · ${n(s.limitHits)} hit a free limit`)}
@@ -163,9 +212,22 @@ function drawChart() {
 document.querySelectorAll("[data-days]").forEach(b => b.onclick = () => {
   days = +b.dataset.days; document.querySelectorAll("[data-days]").forEach(x => x.setAttribute("aria-pressed", x === b)); load();
 });
-$("reload").onclick = load;
+$("reload").onclick = () => load();
 let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => data && drawChart(), 150); });
-load();
+
+// Live: refresh every minute while the app is open, and right away when you come back to it.
+setInterval(() => { if (document.visibilityState === "visible") load(true); }, 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && Date.now() - lastOk > 30000) load(true); });
+
+// "Add to Home Screen" tip, shown until the page is opened as an app.
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+if (!standalone) {
+  const ios = /iPhone|iPad/.test(navigator.userAgent);
+  $("install").innerHTML = ios ? "<b>Install on your iPhone:</b> tap the Share button in Safari, then <b>Add to Home Screen</b>." : "<b>Install on your phone:</b> open the browser menu (⋮), then <b>Add to Home screen</b> or <b>Install app</b>.";
+  $("install").hidden = false;
+}
+
+initSignIn().finally(() => load());
 </script>
 </body>
 </html>
