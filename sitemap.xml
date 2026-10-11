@@ -37,4 +37,7 @@
     <lastmod>2026-10-07</lastmod>
   </url>
   <url><loc>https://essaywiz.app/premium/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://essaywiz.app/terms.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://essaywiz.app/refund.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://essaywiz.app/contact.html</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>
