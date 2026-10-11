@@ -12,9 +12,15 @@
 //   FREE_HUMANIZE_DAILY free humanizes per student per day (default 2)
 //   FREE_DAILY_CHECKS   fair-use cap on free checks per student per day, to protect the AI bill (default 40)
 //   PRO_DAILY_CREDITS   fair-use cap for Pro members per day (default 400)
+//   RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET
+//                       switch on rupee payments for India (UPI, Google Pay, PhonePe, Paytm, RuPay and Indian cards)
+//   INR_PRICE           price of 1 month of Pro in rupees (default 199)
+//   INR_YEARLY_PRICE    price of 1 year of Pro in rupees (default 1499)
+//   INR_PER_USD         exchange rate used only to add rupee sales into the USD totals on the stats page (default 88)
 //   KV_REST_API_URL + KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN)
 //                       a free Upstash Redis store; keeps usage counts and Pro status accurate across servers and devices
 
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { dbEnabled, select, insert, userHash } from "./_db.js";
 
 const env = k => String(process.env[k] || "").trim().replace(/^["']|["']$/g, "").trim();
@@ -162,6 +168,7 @@ async function checkSubscription(id, user) {
 // For the owner's /stats page: a subscription's status and the payments PayPal actually
 // received (gross, PayPal fee, net) since a date.
 export async function subscriptionReport(id, sinceISO) {
+  if (/^PASS-[MY]-pay_/.test(String(id || ""))) return razorpayEnabled() ? inrReport(id, sinceISO) : null;
   if (billingEnabled() && /^PASS-[MY]-/.test(String(id || ""))) return passReport(id, sinceISO);
   if (!billingEnabled() || !/^I-[A-Z0-9]{6,30}$/.test(String(id || ""))) return null;
   const s = await pp("/v1/billing/subscriptions/" + id);
@@ -276,6 +283,7 @@ export async function status(user, hintId) {
     wordLimit: info.pro ? null : FREE_WORDS(), freeWordLimit: FREE_WORDS(), freeHumanizeDaily: FREE_HUMANIZE(),
     price: PRICE(), yearlyPrice: YEAR_PRICE(), period: info.period || null,
     paypalClientId: env("PAYPAL_CLIENT_ID"), planId: await getPlanId(), yearlyPlanId: await getYearPlanId().catch(e => { console.error("yearly plan unavailable", e && e.code); return null; }),
+    razorpayKeyId: razorpayEnabled() ? RZP_ID() : null, inrPrice: INR_PRICE("month"), inrYearlyPrice: INR_PRICE("year"),
     manageUrl: env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://www.sandbox.paypal.com/myaccount/autopay/" : "https://www.paypal.com/myaccount/autopay/",
   };
 }
@@ -337,4 +345,71 @@ async function passReport(id, sinceISO) {
   const b = cap.seller_receivable_breakdown || {}, num = x => Number((x && x.value) || 0);
   const gross = num(b.gross_amount) || num(cap.amount), fee = num(b.paypal_fee);
   return { id, status: "PASS", payments: [{ time: cap.create_time, gross, fee, net: num(b.net_amount) || gross - fee, currency: (cap.amount || {}).currency_code || "USD" }] };
+}
+
+/* ---------- India: rupee payments through Razorpay (UPI, Google Pay, PhonePe, Paytm, RuPay, Indian cards) ---------- */
+// Same idea as the PayPal passes: one payment buys 1 month or 1 year of Pro and never renews.
+// Stored in the subscriptions table as "PASS-M-pay_..." or "PASS-Y-pay_..." so it stacks with other passes.
+const RZP_ID = () => env("RAZORPAY_KEY_ID"), RZP_SECRET = () => env("RAZORPAY_KEY_SECRET");
+export const razorpayEnabled = () => !!(RZP_ID() && RZP_SECRET());
+const INR_PRICE = period => Math.round(Number(period === "year" ? env("INR_YEARLY_PRICE") || 1499 : env("INR_PRICE") || 199)) || (period === "year" ? 1499 : 199);
+async function rzp(path, opts = {}) {
+  const r = await fetch("https://api.razorpay.com/v1" + path, { ...opts, headers: {
+    authorization: "Basic " + Buffer.from(RZP_ID() + ":" + RZP_SECRET()).toString("base64"), "content-type": "application/json" } });
+  let d = null; try { d = await r.json(); } catch {}
+  return { ok: r.ok, status: r.status, d };
+}
+
+export async function createInrPass(user, period) {
+  if (!razorpayEnabled()) throw { status: 400, code: "inr_off" };
+  if (!PASS_DAYS[period]) throw { status: 400, code: "bad_period" };
+  const r = await rzp("/orders", { method: "POST", body: JSON.stringify({
+    amount: INR_PRICE(period) * 100, currency: "INR", receipt: `ew-${period}-${Date.now()}`,
+    notes: { uh: userHash(user), period, product: period === "year" ? "EssayWiz Pro, 1 year" : "EssayWiz Pro, 1 month" } }) });
+  if (!r.ok) { console.error("Razorpay order create failed", r.status, r.d && r.d.error); throw { status: 502, code: "billing_error" }; }
+  return { orderId: r.d.id, amount: r.d.amount, currency: "INR", keyId: RZP_ID() };
+}
+
+// Checks a payment with Razorpay itself (never trusts the browser), captures it if needed and saves the pass.
+// uh: the buyer's user hash, or null to take it from the order (used by the webhook).
+export async function saveInrPayment(paymentId, uh) {
+  if (!/^pay_[A-Za-z0-9]{6,30}$/.test(String(paymentId || ""))) throw { status: 400, code: "bad_payment" };
+  let p = await rzp("/payments/" + paymentId);
+  if (!p.ok || !p.d) throw { status: 400, code: "bad_payment" };
+  const o = p.d.order_id ? await rzp("/orders/" + p.d.order_id) : { ok: false };
+  if (!o.ok || !o.d) throw { status: 402, code: "payment_failed" };
+  const period = String((o.d.notes || {}).period || ""), owner = String((o.d.notes || {}).uh || "");
+  if (!PASS_DAYS[period] || !owner || (uh && owner !== uh)) throw { status: 402, code: "payment_failed" };
+  if (p.d.status === "authorized") {
+    const c = await rzp(`/payments/${paymentId}/capture`, { method: "POST", body: JSON.stringify({ amount: p.d.amount, currency: p.d.currency }) });
+    if (!c.ok) console.error("Razorpay capture failed", c.status, c.d && c.d.error);
+    p = await rzp("/payments/" + paymentId);
+  }
+  if (!p.ok || p.d.status !== "captured" || p.d.currency !== "INR" || Number(p.d.amount) < INR_PRICE(period) * 100) throw { status: 402, code: "payment_failed" };
+  const id = `PASS-${period === "year" ? "Y" : "M"}-${paymentId}`;
+  const saved = await insert("subscriptions", { id, user_hash: owner }, { onConflict: "id" });
+  if (saved === null) console.error("PASS NOT SAVED: paid Razorpay payment", paymentId, "for", owner, "- add it to the subscriptions table by hand");
+  return { period, owner };
+}
+
+export async function captureInrPass(user, { orderId, paymentId, signature }) {
+  if (!razorpayEnabled()) throw { status: 400, code: "inr_off" };
+  // The signature proves the payment came from Razorpay's checkout for this order.
+  const want = createHmac("sha256", RZP_SECRET()).update(String(orderId) + "|" + String(paymentId)).digest("hex");
+  const got = String(signature || "");
+  if (got.length !== want.length || !timingSafeEqual(Buffer.from(got), Buffer.from(want))) throw { status: 402, code: "payment_failed" };
+  const { period } = await saveInrPayment(paymentId, userHash(user));
+  await kv(["SET", "sr:pass:" + user.sub, String(Math.max(Number(await kv(["GET", "sr:pass:" + user.sub]) || 0), Date.now()) + PASS_DAYS[period] * 864e5)]);
+  proCache.delete(user.sub);
+  return period;
+}
+
+async function inrReport(id, sinceISO) {
+  const p = await rzp("/payments/" + id.slice(7));
+  if (!p.ok || !p.d || p.d.status !== "captured") return { id, status: "PASS", payments: [] };
+  const time = new Date(p.d.created_at * 1000).toISOString();
+  if (time < sinceISO) return { id, status: "PASS", payments: [] };
+  const rate = Number(env("INR_PER_USD") || 88) || 88, usd = paise => Math.round(paise / 100 / rate * 100) / 100;
+  const gross = usd(p.d.amount), fee = usd(Number(p.d.fee || 0));
+  return { id, status: "PASS", payments: [{ time, gross, fee, net: Math.round((gross - fee) * 100) / 100, currency: "USD" }] };
 }
