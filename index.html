@@ -172,6 +172,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 .says-grid figure{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
 .says-grid .st{color:#f2b01e;letter-spacing:1px}.says-grid blockquote{margin:6px 0 8px;color:#2b3550}.says-grid figcaption{font-size:.82rem;color:var(--muted)}
 .says .avg{color:var(--muted);font-size:.9rem;margin:-4px 0 10px}
+#inr{border:1px solid #f0d78a;background:#fffaf0;border-radius:12px;padding:12px;margin:0 0 12px;text-align:left}#inr h3{margin:0 0 4px;font-size:1rem}#inr .upi{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}#inr .upi span{font-size:.75rem;border:1px solid var(--line,#ddd);background:#fff;border-radius:99px;padding:2px 8px}#inr button{width:100%}#inr .or{text-align:center;font-size:.8rem;color:var(--muted);margin:10px 0 0}
 .pro-box .once{display:flex;gap:8px;align-items:flex-start;font-size:.86rem;color:var(--muted);margin:0 0 8px;cursor:pointer}.pro-box .once input{margin-top:3px}.pro-box .once b{color:var(--ink)}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
@@ -313,8 +314,8 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
       <li>Unlimited humanizing (free plan: 2 a day) and the Citation Generator</li>
       <li>Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
     </ul>
-    <div id="proBody"><div id="ppbtn"></div><div id="ppOnce" hidden></div><div id="applepay" hidden></div></div>
-    <p class="fine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.</p>
+    <div id="proBody"><div id="inr" hidden></div><div id="ppbtn"></div><div id="ppOnce" hidden></div><div id="applepay" hidden></div></div>
+    <p class="fine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.<span id="inrLink" hidden> <b>In India?</b> <a href="#" id="inrShow">Pay in rupees with UPI</a>.</span></p>
     <button class="ghost" id="proClose" type="button">Not now</button>
   </div>
 </div>
@@ -840,6 +841,7 @@ async function openPro(why){
     if (c.subscriptionStatus !== "PASS"){ const a = el("a", null, "Manage or cancel in PayPal"); a.href = c.manageUrl; a.target = "_blank"; a.rel = "noopener"; body.append(a); }
     return;
   }
+  setupInr(c);
   if (bill.ppLoaded || !c.paypalClientId || !c.planId) return;
   try {
     await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&vault=true&intent=subscription&currency=USD&enable-funding=card,venmo`);
@@ -871,6 +873,7 @@ function showPeriod(){
   $("proPrice").textContent = yr ? y.toFixed(2) : String(m);
   $("proUnit").textContent = yr ? "USD / year" : "USD / month";
   if (bill.apNote) bill.apNote();
+  if (bill.inrNote) bill.inrNote();
   const once = $("payOnce") && $("payOnce").checked;
   $("ppbtn").hidden = once; $("ppOnce").hidden = !once;
   $("proUnit").textContent = once ? (yr ? "USD for 1 year" : "USD for 1 month") : (yr ? "USD / year" : "USD / month");
@@ -934,6 +937,55 @@ async function setupOnce(c){
     }).render("#ppOnce");
   } catch { /* the subscription buttons still work */ }
 }
+// India: pay in rupees through Razorpay (UPI, Google Pay, PhonePe, Paytm, RuPay and Indian cards).
+// A one-time payment for 1 month or 1 year of Pro that never renews. Shown first for students in India.
+const inIndia = () => { try { return /^Asia\/(Kolkata|Calcutta)$/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) || /-IN$/i.test(navigator.language || ""); } catch { return false; } };
+function setupInr(c){
+  const box = $("inr"), link = $("inrLink");
+  if (!c.razorpayKeyId || !box){ if (link) link.hidden = true; return; }
+  const india = inIndia();
+  link.hidden = india;
+  if (!bill.inrBuilt){
+    bill.inrBuilt = true;
+    box.innerHTML = '<h3>🇮🇳 Pay in rupees</h3><p class="fine" style="margin:0">UPI, Google Pay, PhonePe, Paytm, RuPay or any Indian card.</p><div class="upi"><span>UPI</span><span>Google Pay</span><span>PhonePe</span><span>Paytm</span><span>Cards</span></div><button class="primary" type="button" id="inrBtn"></button><p class="fine" id="inrNote" style="margin:6px 0 0"></p><p class="or">or pay in USD below</p>';
+    const amount = () => bill.period === "year" ? Number(c.inrYearlyPrice || 1499) : Number(c.inrPrice || 199);
+    bill.inrNote = () => { const b = $("inrBtn"), n = $("inrNote"); if (!b) return; const yr = bill.period === "year";
+      b.textContent = `Pay ₹${amount().toLocaleString("en-IN")} for 1 ${yr ? "year" : "month"}`;
+      n.textContent = `One-time payment for ${yr ? "1 year" : "1 month"} of Pro. It doesn't renew, so you're never charged again.${yr ? ` That's about ₹${Math.round(amount() / 12)} a month.` : ""}`; };
+    bill.inrNote();
+    $("inrBtn").onclick = payInr;
+  }
+  box.hidden = !india && !bill.inrOpen;
+}
+async function payInr(){
+  const btn = $("inrBtn"); btn.disabled = true;
+  try {
+    if (!window.Razorpay) await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+    const period = bill.period === "year" ? "year" : "month";
+    const o = await api("/api/billing", { action: "inr_create", period });
+    const u = auth.user || {};
+    const rz = new Razorpay({
+      key: o.keyId, order_id: o.orderId, amount: o.amount, currency: "INR",
+      name: "EssayWiz", description: period === "year" ? "EssayWiz Pro, 1 year" : "EssayWiz Pro, 1 month",
+      image: location.origin + "/icon-192.png",
+      prefill: { name: u.name || "", email: u.email || "" }, theme: { color: "#1d3a6e" },
+      config: { display: { blocks: { upi: { name: "Pay with UPI", instruments: [{ method: "upi" }] } }, sequence: ["block.upi"], preferences: { show_default_blocks: true } } },
+      modal: { ondismiss: () => { btn.disabled = false; } },
+      handler: async r => {
+        const body = $("proBody"); body.innerHTML = ""; body.append(el("p", null, "Confirming your payment…"));
+        try {
+          const s = await api("/api/billing", { action: "inr_capture", orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature });
+          bill.cfg = s; bill.pro = s.pro; renderPlan();
+          body.innerHTML = ""; body.append(el("p", null, `You're on Pro until ${new Date(s.paidUntil).toLocaleDateString("en-IN")}. It won't renew, so you won't be charged again.`));
+          setStatus("Welcome to EssayWiz Pro!");
+        } catch (e) { body.innerHTML = ""; body.append(el("p", null, "We couldn't confirm the payment yet. If money left your account, refresh the page in a minute; Pro switches on automatically. Still stuck? Email us and we'll fix it right away.")); }
+      },
+    });
+    rz.on("payment.failed", () => setStatus("The payment didn't go through. Please try again or use another UPI app.", true));
+    rz.open();
+  } catch (e) { btn.disabled = false; setStatus("UPI checkout couldn't open. Please try again in a moment.", true); }
+}
+$("inrShow").onclick = e => { e.preventDefault(); bill.inrOpen = true; $("inr").hidden = false; $("inrLink").hidden = true; $("inr").scrollIntoView({ block: "nearest" }); };
 $("payOnce").onchange = showPeriod;
 $("proClose").onclick = () => { $("pro").hidden = true; };
 $("planPill").onclick = () => openPro();
