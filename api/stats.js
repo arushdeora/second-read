@@ -1,5 +1,7 @@
 // Owner-only numbers for the /stats page: users, usage, Claude cost, PayPal revenue and profit.
 // POST { days: 30 } with the owner's Google sign-in. Everyone else gets 403.
+// The owner's Jarvis app on the laptop can also read it with the private key in STATS_KEY (header x-stats-key).
+import { timingSafeEqual } from "node:crypto";
 import { guard, fail } from "./_lib.js";
 import { isOwner, subscriptionReport, billingEnabled } from "./_billing.js";
 import { dbEnabled } from "./_db.js";
@@ -7,11 +9,23 @@ import { selectAll } from "./_stats.js";
 
 export const config = { maxDuration: 60 };
 const env = k => String(process.env[k] || "").trim();
+// Private key for the owner's Jarvis app. Ignored unless STATS_KEY is set and at least 24 characters long.
+function keyOk(req) {
+  const want = env("STATS_KEY"), got = String(req.headers["x-stats-key"] || "").trim();
+  if (want.length < 24 || !got || got.length !== want.length) return false;
+  return timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
 const round = (x, n = 2) => Number((x || 0).toFixed(n));
 
 export default async function handler(req, res) {
-  const body = await guard(req, res, { cost: 0 }); if (!body) return;
-  if (!isOwner(req.srUser)) return res.status(403).json({ code: "owner_only" });
+  let body;
+  if (keyOk(req)) {
+    if (req.method !== "POST") return res.status(405).json({ code: "method_not_allowed" });
+    body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+  } else {
+    body = await guard(req, res, { cost: 0 }); if (!body) return;
+    if (!isOwner(req.srUser)) return res.status(403).json({ code: "owner_only" });
+  }
   if (!dbEnabled()) return res.status(200).json({ code: "no_database" });
   try {
     const days = Math.max(1, Math.min(365, Number(body.days) || 30));
