@@ -1,0 +1,15 @@
+{
+  "name": "EssayWiz",
+  "short_name": "EssayWiz",
+  "description": "Free writing toolkit for students: paraphraser, grammar, plagiarism and AI checker, humanizer and citations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d3a6e",
+  "icons": [
+    { "src": "/icon-48.png", "sizes": "48x48", "type": "image/png" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
