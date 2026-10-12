@@ -925,16 +925,17 @@ async function setupApplePay(c){
 async function setupOnce(c){
   if (bill.onceLoaded) return; bill.onceLoaded = true;
   try {
-    await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&currency=USD&intent=capture&enable-funding=card&disable-funding=paylater`, "ppOnce");
+    await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&currency=USD&intent=capture&enable-funding=card&disable-funding=paylater`, "paypalOnce");
     bill.onceReady = true;
     renderOnce();
   } catch { bill.onceLoaded = false; /* the subscription buttons still work; try again next time */ }
 }
 function renderOnce(){
-  if (bill.onceRendered || !bill.onceReady || $("ppOnce").hidden || !window.ppOnce) return;
+  // The SDK namespace must not match an element id: window.ppOnce would be the <div id="ppOnce">, not PayPal.
+  if (bill.onceRendered || !bill.onceReady || $("ppOnce").hidden || !(window.paypalOnce && window.paypalOnce.Buttons)) return;
   bill.onceRendered = true;
   try {
-    window.ppOnce.Buttons({
+    window.paypalOnce.Buttons({
       style: { shape: "pill", color: "gold", layout: "vertical", label: "pay" },
       createOrder: async () => (await api("/api/billing", { action: "pass_create", period: bill.period === "year" ? "year" : "month" })).id,
       onApprove: async d => {
