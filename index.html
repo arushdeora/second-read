@@ -879,6 +879,7 @@ function showPeriod(){
   if (bill.inrNote) bill.inrNote();
   const once = $("payOnce") && $("payOnce").checked;
   $("ppbtn").hidden = once; $("ppOnce").hidden = !once;
+  if (once) renderOnce();
   $("proUnit").textContent = once ? (yr ? "USD for 1 year" : "USD for 1 month") : (yr ? "USD / year" : "USD / month");
   $("proSave").hidden = !yr; $("proSave").textContent = `That's $${(y / 12).toFixed(2)} a month, ${Math.round((1 - y / (m * 12)) * 100)}% less than paying monthly.`;
 }
@@ -920,10 +921,19 @@ async function setupApplePay(c){
   } catch (e) { console.warn("Apple Pay unavailable", e && e.message); }
 }
 // "Pay once": a one-time PayPal or card payment for 1 month or 1 year of Pro that never renews.
+// The buttons are drawn only once the box is visible: PayPal buttons drawn inside a hidden box can stay blank.
 async function setupOnce(c){
   if (bill.onceLoaded) return; bill.onceLoaded = true;
   try {
     await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&currency=USD&intent=capture&enable-funding=card&disable-funding=paylater`, "ppOnce");
+    bill.onceReady = true;
+    renderOnce();
+  } catch { bill.onceLoaded = false; /* the subscription buttons still work; try again next time */ }
+}
+function renderOnce(){
+  if (bill.onceRendered || !bill.onceReady || $("ppOnce").hidden || !window.ppOnce) return;
+  bill.onceRendered = true;
+  try {
     window.ppOnce.Buttons({
       style: { shape: "pill", color: "gold", layout: "vertical", label: "pay" },
       createOrder: async () => (await api("/api/billing", { action: "pass_create", period: bill.period === "year" ? "year" : "month" })).id,
@@ -937,8 +947,8 @@ async function setupOnce(c){
         } catch (e) { body.innerHTML = ""; body.append(el("p", null, "We couldn't confirm the payment. If money left your account, email us and we'll switch on Pro right away.")); }
       },
       onError: () => setStatus("PayPal couldn't start the payment. Please try again.", true),
-    }).render("#ppOnce");
-  } catch { /* the subscription buttons still work */ }
+    }).render("#ppOnce").catch(() => { bill.onceRendered = false; });
+  } catch { bill.onceRendered = false; }
 }
 // India: pay in rupees through Razorpay (UPI, Google Pay, PhonePe, Paytm, RuPay and Indian cards).
 // A one-time payment for 1 month or 1 year of Pro that never renews. Shown first for students in India.
