@@ -899,11 +899,18 @@ async function setupApplePay(c){
     const amount = () => (bill.period === "year" ? Number(c.yearlyPrice || 39.99) : Number(c.price || 5)).toFixed(2);
     bill.apNote = () => { const n = $("apNote"); if (n) n.textContent = `Apple Pay is a one-time payment of $${amount()} for 1 ${bill.period === "year" ? "year" : "month"} of Pro. It doesn't renew automatically.`; };
     bill.apNote();
+    const apMsg = t => { const n = $("apNote"); if (n) { n.textContent = t; n.style.color = "#b3362f"; } setStatus(t, true); };
     box.querySelector("apple-pay-button").addEventListener("click", () => {
       const period = bill.period === "year" ? "year" : "month";
       const total = { label: `EssayWiz Pro, 1 ${period}`, type: "final", amount: amount() };
-      const session = new ApplePaySession(4, { countryCode: cfg.countryCode, currencyCode: "USD", merchantCapabilities: cfg.merchantCapabilities, supportedNetworks: cfg.supportedNetworks, total });
-      session.onvalidatemerchant = e => ap.validateMerchant({ validationUrl: e.validationURL }).then(r => session.completeMerchantValidation(r.merchantSession)).catch(() => session.abort());
+      let session;
+      try {
+        session = new ApplePaySession(4, { countryCode: cfg.countryCode, currencyCode: "USD", merchantCapabilities: cfg.merchantCapabilities, supportedNetworks: cfg.supportedNetworks, total });
+      } catch (err) { console.warn("Apple Pay session failed", err && err.message); apMsg("Apple Pay couldn't open on this device. Please pay with PayPal or a card."); return; }
+      session.onvalidatemerchant = e => ap.validateMerchant({ validationUrl: e.validationURL })
+        .then(r => session.completeMerchantValidation(r.merchantSession))
+        .catch(err => { console.warn("Apple Pay merchant validation failed", err && (err.message || err)); try { session.abort(); } catch {} apMsg("Apple Pay isn't ready on EssayWiz yet. Please pay with PayPal or a card for now."); });
+      session.oncancel = () => { if (bill.apNote) bill.apNote(); };
       session.onpaymentmethodselected = () => session.completePaymentMethodSelection({ newTotal: total });
       session.onpaymentauthorized = async e => {
         try {
