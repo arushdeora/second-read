@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/.well-known/apple-developer-merchantid-domain-association",
+      "destination": "https://paypalobjects.com/devdoc/apple-pay/well-known/apple-developer-merchantid-domain-association"
+    }
+  ]
+}
