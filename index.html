@@ -632,8 +632,11 @@ async function runAI(){
     const host = outs.ai; host.textContent = "";
     const ap = Math.round(Number(d.score) || 0); host._score = ap;
     const ring = el("div", "ring"); const dial = el("div", "dial"); dial.style.setProperty("--p", ap); dial.style.setProperty("--c", ap >= 60 ? "var(--bad)" : ap >= 30 ? "var(--warn)" : "var(--good)"); dial.append(el("div", null, ap + "%"));
-    const p = el("p"); p.append(el("b", null, ap >= 60 ? "Likely AI-written" : ap >= 30 ? "Partly AI-written" : "Looks human-written"), document.createElement("br"), document.createTextNode(d.summary || ""));
+    const multi = Array.isArray(d.detectors) && d.detectors.length;
+    const label = d.verdict === "ai" ? "Likely AI-written" : d.verdict === "human" ? "Looks human-written" : multi ? "Unclear: the detectors disagree" : ap >= 30 ? "Partly AI-written" : "Looks human-written";
+    const p = el("p"); p.append(el("b", null, label), document.createElement("br"), document.createTextNode(d.summary || ""));
     ring.append(dial, p); host.append(ring);
+    if (multi) host.append(el("p", "note", "Detector scores: " + d.detectors.map(x => `${x.name} ${x.score}%`).join(" · ") + ". No AI detector is perfect; use this as a guide, not proof."));
     if (d.shortText) host.append(el("p", "note", `Only ${d.words || "a few"} words: short texts can't be judged reliably, so treat this as a rough guide. Check 150+ words for a better reading.`));
     host.append(highlight(text, aiRanges(sents, d, 50)));
     const flagged = (d.sentences || []).filter(x => x.likelihood >= 50).sort((a, b) => b.likelihood - a.likelihood).slice(0, 8);
