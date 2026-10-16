@@ -187,18 +187,30 @@ export async function askClaudeText(prompt, maxTokens) {
 // sentences; if the result is too short (or too long), ask once more with the exact
 // numbers and keep whichever attempt is closest to the target.
 export const countWords = t => (String(t).match(/[A-Za-z0-9\u00C0-\u024F\u2019'-]+/g) || []).length;
+// Text the rewrite cleanup must leave exactly as written: quotations, (…) and […] (citations, page ranges), links.
+const KEEP_AS_IS = /"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’|\([^()\n]*\)|\[[^\]\n]*\]|\b(?:https?:\/\/|www\.)\S+/g;
+// Words that already join two clauses, so "; but" becomes ", but" rather than ", and but".
+const JOINER = /^(?:and|but|or|nor|so|yet|for|because|while|which|although|though|as|since)$/;
+const ADVERB = /^(?:however|therefore|thus|hence|then|moreover|furthermore|instead|otherwise|meanwhile|consequently|nevertheless)$/;
 export async function rewriteKeepLength(prompt, original, { min = 0.92, max = 1.12, maxTokens } = {}) {
   const n = countWords(original);
   const lo = Math.round(n * min), hi = Math.round(n * max);
   const rule = `\n\nLENGTH RULE: The original is ${n} words. Your rewrite MUST be between ${lo} and ${hi} words. Rewrite every sentence; do not drop sentences, ideas, examples, details or qualifiers. Change words and sentence structure instead of deleting them. Keep the same number of paragraphs and roughly the same number of sentences in each.\n\nPUNCTUATION RULE: When you continue or join a sentence, use connecting WORDS (and, but, because, so, while, which, although, as, since) or start a new sentence. Do NOT use dashes (— or – or a hyphen used as a dash), semicolons, or colons to join clauses. Use only full stops, commas, question marks, quotation marks and normal hyphens inside words.`;
   const tokens = maxTokens || Math.min(16000, Math.ceil(String(original).length / 2) + 1200);
   // Safety net: turn any leftover dash or semicolon joins into a comma or a full stop.
-  const unjoin = t => t
-    .replace(/\s*[\u2014\u2013]\s*/g, ", ")                 // em/en dashes -> comma
-    .replace(/(\w) - (\w)/g, "$1, $2")                        // spaced hyphen used as a dash
-    .replace(/;\s+([a-z])/g, ", and $1")                       // semicolon before lowercase -> ", and"
-    .replace(/;\s+([A-Z])/g, ". $1")                           // semicolon before capital -> new sentence
-    .replace(/,\s*,/g, ",").replace(/, ([.!?])/g, "$1");
+  // Never inside quotations, brackets (citations like "(Hale, 2015; Twenge, 2017)", "pp. 12\u201315") or links,
+  // never between numbers ("2010\u20132020"), and never across a line break (that would merge paragraphs).
+  const unjoinPart = t => t
+    .replace(/[ \t]*[\u2014\u2013][ \t]*/g, (m, at, s) => /\d/.test(s[at - 1] || "") && /\d/.test(s[at + m.length] || "") ? m : ", ")   // dashes -> comma
+    .replace(/(\w) - (\w)/g, "$1, $2")                                     // spaced hyphen used as a dash
+    .replace(/;[ \t]+([a-z]+)/g, (m, w) => ADVERB.test(w) ? ". " + w[0].toUpperCase() + w.slice(1) : JOINER.test(w) ? ", " + w : ", and " + w)   // "; however" -> ". However", else ", and"
+    .replace(/;[ \t]+([A-Z])/g, ". $1")                                    // semicolon before capital -> new sentence
+    .replace(/,[ \t]*,/g, ",").replace(/, ([.!?])/g, "$1");
+  const unjoin = t => {
+    let out = "", last = 0;
+    for (const m of t.matchAll(KEEP_AS_IS)) { out += unjoinPart(t.slice(last, m.index)) + m[0]; last = m.index + m[0].length; }
+    return out + unjoinPart(t.slice(last));
+  };
   const clean = t => unjoin(t.replace(/^"""\s*|\s*"""$/g, "")).trim();
   let best = await askClaudeText(prompt + rule, tokens); best.text = clean(best.text);
   // Output guardrail: if the AI talked to the student instead of rewriting, try once more, then give up.
