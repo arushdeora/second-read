@@ -53,10 +53,13 @@ function stats(sentences) {
   const personal = (lower.match(/\b(i|i'm|i've|i'd|my|me|we|our)\b/g) || []).length + (lower.match(/\b\w+'(t|s|re|ve|ll|d|m)\b/g) || []).length;
   const personalRate = personal / n * 100;
   // Each sub-score: 0 = looks human, 100 = looks AI.
-  const burst = lens.length < 4 ? 40 : clamp((0.55 - cv) / 0.30 * 100);   // even sentence lengths look AI
+  // Sentence-length variety only means something over enough sentences; on a short passage it is noise,
+  // so it stays neutral-low there instead of counting against the writer.
+  const burst = lens.length < 8 ? 25 : clamp((0.55 - cv) / 0.30 * 100);   // even sentence lengths look AI
   const phr = clamp(phraseRate / 1.2 * 100);                               // ~1.2 stock phrases / 100 words = max
   const pers = clamp((2 - personalRate) / 2 * 50);                         // no personal voice is only a weak signal
-  const score = 0.45 * burst + 0.40 * phr + 0.15 * pers;
+  // No personal voice is normal in summaries and literary analysis, so it only counts a little.
+  const score = 0.50 * burst + 0.45 * phr + 0.05 * pers;
   return { score, cv, phraseHits, phraseRate, personalRate, words: n };
 }
 
@@ -72,7 +75,8 @@ async function handler(req, res) {
 Do NOT treat these as AI evidence on their own: formal or academic tone, correct grammar, good vocabulary, clear structure, topic sentences, citations, non-native English patterns, or simply being well written. Many careful human writers produce this.
 
 Count as AI evidence only concrete markers: stock AI phrases ("delve", "it is important to note", "plays a crucial/pivotal role", "in today's rapidly evolving", "tapestry", "multifaceted", "navigate the landscape"), empty generic claims with no specifics, perfectly balanced lists of three repeated across sentences, hedging boilerplate, and the same sentence rhythm over and over.
-Count as human evidence: specific details, examples, names, numbers, personal opinions or experiences, uneven rhythm, informal or idiosyncratic wording, small mistakes.
+Count as human evidence: specific details, examples, names, numbers, personal opinions or experiences, uneven rhythm, informal or idiosyncratic wording, small mistakes (typos, a missing space after a comma).
+Summaries and literary analysis are normally written in the third person without "I": that is NOT AI evidence. Quoting or naming an author and their arguments is normal student work.
 
 Calibration for each sentence's "likelihood":
 - 0-20: ordinary human writing, including formal academic writing
@@ -113,19 +117,24 @@ Include every sentence number exactly once.`;
     const modelMean = wsum ? lsum / wsum : 20;
     const modelScore = r.score == null ? modelMean : 0.5 * modelMean + 0.5 * clamp(Number(r.score) || modelMean);
     let score = 0.6 * modelScore + 0.4 * st.score;
-    // Without measurable AI fingerprints (few stock phrases and varied sentences), don't report a high score.
-    if (st.phraseRate < 0.4 && st.cv >= 0.42) score = Math.min(score, 35);
+    // False accusations are the worst error for students, so without measurable AI fingerprints the score
+    // stays low: no stock phrases at all caps it at 25 (55 only if the model is very sure), few phrases at 40.
+    if (st.phraseHits === 0) score = Math.min(score, modelMean >= 80 ? 55 : 25);
+    else if (st.phraseRate < 0.4) score = Math.min(score, 40);
     else if (st.phraseRate < 0.6) score = Math.min(score, 55);
-    // Very short texts can't be judged reliably: pull toward the middle-low range.
-    if (st.words < 80) score = 0.6 * score + 0.4 * 25;
+    // Short texts can't be judged reliably: pull toward a low, neutral value and say so.
+    const shortText = st.words < 150;
+    if (st.words < 80) score = 0.5 * score + 0.5 * 20;
+    else if (shortText) score = 0.75 * score + 0.25 * 20;
     score = Math.round(clamp(score));
     // Rescale sentence likelihoods so they agree with the overall result.
     const k = modelMean > 0 ? Math.min(1.2, score / modelMean) : 1;
     const sentencesOut = list.map(x => ({ ...x, likelihood: Math.round(clamp(x.likelihood * k)) }));
-    const summary = String(r.summary || "") || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector.");
+    // When the calibrated score is low, don't show a model summary that may still talk about AI signs.
+    const summary = (score < 30 ? "" : String(r.summary || "")) || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector.");
     await collect(req, body, sentences.map(s => s.text).join(" "), { tool: "ai", modelScore: score });
     res.status(200).json({
-      score, summary, sentences: sentencesOut, engine: own ? (onlyOwn ? "own" : "own+claude") : "claude",
+      score, summary, sentences: sentencesOut, shortText, words: st.words, engine: own ? (onlyOwn ? "own" : "own+claude") : "claude",
       signals: [
         { label: `Sentence variety ${st.cv >= 0.45 ? "high" : st.cv >= 0.3 ? "medium" : "low"}`, level: st.cv >= 0.45 ? "good" : st.cv >= 0.3 ? "warn" : "bad" },
         { label: `${st.phraseHits} stock AI phrase${st.phraseHits === 1 ? "" : "s"}`, level: st.phraseRate < 0.4 ? "good" : st.phraseRate < 1 ? "warn" : "bad" },
