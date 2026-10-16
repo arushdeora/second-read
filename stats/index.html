@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
 <style>
-:root{--bg:#f3f5f9;--paper:#fff;--ink:#15233f;--muted:#5b6579;--line:#dde2ea;--soft:#f7f9fc;--accent:#1d3a6e;--bar:#2f6fd6;--good:#2b7a57;--bad:#b3362f;
+:root{--bg:#f3f5f9;--paper:#fff;--ink:#15233f;--muted:#5b6579;--line:#dde2ea;--soft:#f7f9fc;--accent:#1d3a6e;--bar:#2f6fd6;--bar2:#a9bcdc;--good:#2b7a57;--bad:#b3362f;
   --display:"Source Serif 4",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;color-scheme:light}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
 .top{min-height:56px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top) 16px 0;position:sticky;top:0;z-index:5}
@@ -142,13 +142,15 @@ function render() {
   $("out").innerHTML = `
     <h2>Today</h2>
     <div class="today">
-      ${tile("Users", n(td.users), `${n(td.newUsers)} new`)}
+      ${tile("Users", n(td.users), `${n(td.newUsers)} new · ${n(td.returning || 0)} returning`)}
       ${tile("Checks", n(td.checks), usd(td.cost || 0, 3) + " Claude cost")}
       ${tile("Revenue", usd(td.revenue || 0), "after fees", (td.revenue || 0) > 0 ? "pos" : "")}
     </div>
     <h2>Last ${data.days} days</h2>
     <div class="tiles">
-      ${tile("Users", n(s.users), `${n(s.newUsers)} new · ${n(s.activeToday)} today`)}
+      ${tile("Users", n(s.users), `${n(s.activeToday)} today`)}
+      ${tile("New users", n(s.newUsers), "first visit in this period")}
+      ${tile("Returning users", n(s.returningUsers || 0), s.users ? `${Math.round((s.returningUsers || 0) / s.users * 100)}% came back from before` : "used EssayWiz before this period")}
       ${tile("Checks run", n(s.checks), `${n(s.words)} words · ${n(s.limitHits)} hit a free limit`)}
       ${tile("Pro members", n(s.proActive), `${conv} · ${n(s.proSignups)} sign-ups`)}
       ${tile("Revenue (after PayPal fees)", usd(s.net), data.billing ? `${usd(s.gross)} paid − ${usd(s.fees)} fees` : "PayPal not connected")}
@@ -193,13 +195,13 @@ function toolTable() {
     data.tools.map(t => `<tr><td>${esc(TOOL_NAMES[t.tool] || t.tool)}</td><td class="r">${n(t.checks)}</td><td class="r">${n(t.words)}</td><td class="r">${usd(t.cost, 4)}</td><td class="r">${usd(t.avgCost, 4)}</td></tr>`).join("")}</tbody></table>`;
 }
 function dailyTable() {
-  return `<table><thead><tr><th>Day</th><th class="r">Users</th><th class="r">New</th><th class="r">Checks</th><th class="r">Claude cost</th><th class="r">Revenue</th></tr></thead><tbody>${
-    data.daily.slice().reverse().map(d => `<tr><td>${d.day}</td><td class="r">${n(d.users)}</td><td class="r">${n(d.newUsers)}</td><td class="r">${n(d.checks)}</td><td class="r">${usd(d.cost, 4)}</td><td class="r">${usd(d.revenue)}</td></tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr><th>Day</th><th class="r">Users</th><th class="r">New</th><th class="r">Returning</th><th class="r">Checks</th><th class="r">Claude cost</th><th class="r">Revenue</th></tr></thead><tbody>${
+    data.daily.slice().reverse().map(d => `<tr><td>${d.day}</td><td class="r">${n(d.users)}</td><td class="r">${n(d.newUsers)}</td><td class="r">${n(d.returning || 0)}</td><td class="r">${n(d.checks)}</td><td class="r">${usd(d.cost, 4)}</td><td class="r">${usd(d.revenue)}</td></tr>`).join("")}</tbody></table>`;
 }
 
 function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
 function drawChart() {
-  const titles = { users: "Daily users", checks: "Checks per day", cost: "Claude cost per day (USD)", revenue: "Revenue per day (USD, after fees)" };
+  const titles = { users: "Daily users: new and returning", checks: "Checks per day", cost: "Claude cost per day (USD)", revenue: "Revenue per day (USD, after fees)" };
   $("chartTitle").textContent = titles[metric];
   const rows = data.daily, vals = rows.map(d => d[metric]);
   const money = metric === "cost" || metric === "revenue";
@@ -215,15 +217,18 @@ function drawChart() {
   let bars = "";
   rows.forEach((d, i) => {
     const v = d[metric], x = L + i * step + (step - bw) / 2, h = Math.max(0, (v / max) * ih), r = Math.min(4, bw / 2, h);
-    if (h > 0) bars += `<path d="M${x},${T + ih} V${T + ih - h + r} Q${x},${T + ih - h} ${x + r},${T + ih - h} H${x + bw - r} Q${x + bw},${T + ih - h} ${x + bw},${T + ih - h + r} V${T + ih} Z" fill="var(--bar)"/>`;
+    // Users: returning at the bottom (light), new on top (dark).
+    if (metric === "users" && h > 0) { const hr = Math.max(0, ((d.returning || 0) / max) * ih); if (hr > 0) bars += `<rect x="${x}" y="${T + ih - hr}" width="${bw}" height="${hr}" fill="var(--bar2)"/>`; if (h - hr > 0) bars += `<rect x="${x}" y="${T + ih - h}" width="${bw}" height="${h - hr}" rx="${Math.min(3, bw / 2)}" fill="var(--bar)"/>`; }
+    else if (h > 0) bars += `<path d="M${x},${T + ih} V${T + ih - h + r} Q${x},${T + ih - h} ${x + r},${T + ih - h} H${x + bw - r} Q${x + bw},${T + ih - h} ${x + bw},${T + ih - h + r} V${T + ih} Z" fill="var(--bar)"/>`;
     bars += `<rect x="${L + i * step}" y="${T}" width="${step}" height="${ih}" fill="transparent" data-i="${i}"/>`;
   });
-  $("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${titles[metric]}">${g}<line x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}" stroke="#c5ccd8"/>${bars}</svg><div class="tip" id="tip"></div>`;
+  const legend = metric === "users" ? `<div class="note" style="margin:0 0 6px"><span style="display:inline-block;width:10px;height:10px;background:var(--bar);border-radius:2px"></span> New &nbsp; <span style="display:inline-block;width:10px;height:10px;background:var(--bar2);border-radius:2px"></span> Returning</div>` : "";
+  $("chart").innerHTML = legend + `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${titles[metric]}">${g}<line x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}" stroke="#c5ccd8"/>${bars}</svg><div class="tip" id="tip"></div>`;
   const svg = $("chart").querySelector("svg"), tip = $("tip");
   svg.querySelectorAll("rect[data-i]").forEach(el => {
     el.addEventListener("mousemove", e => {
       const d = rows[+el.dataset.i], box = $("chart").getBoundingClientRect();
-      tip.textContent = `${d.day}: ${fmt(d[metric])}`; tip.style.left = (e.clientX - box.left) + "px"; tip.style.top = (e.clientY - box.top) + "px"; tip.style.opacity = 1; tip.style.visibility = "visible";
+      tip.textContent = metric === "users" ? `${d.day}: ${n(d.users)} users (${n(d.newUsers)} new, ${n(d.returning || 0)} returning)` : `${d.day}: ${fmt(d[metric])}`; tip.style.left = (e.clientX - box.left) + "px"; tip.style.top = (e.clientY - box.top) + "px"; tip.style.opacity = 1; tip.style.visibility = "visible";
     });
     el.addEventListener("mouseleave", () => { tip.style.opacity = 0; tip.style.visibility = "hidden"; });
   });
