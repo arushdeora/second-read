@@ -59,6 +59,11 @@ button:disabled{opacity:.5;cursor:default}
 .nav button[aria-current="page"]{background:#e8eefb;color:var(--accent)}
 .side .foot{font-size:.8rem;color:var(--muted);padding:14px 12px}
 .side .foot a{color:var(--muted)}
+.proofchart{width:100%;height:120px;border:1px solid var(--line);border-radius:10px;background:var(--soft);margin-top:6px}
+.proofchart polyline{fill:none;stroke:var(--accent2);stroke-width:2}
+.proofreplay{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--paper);max-height:220px;overflow:auto;white-space:pre-wrap;font-size:.9rem;margin-top:6px}
+.proofrec{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--bad)}
+.proofrec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--bad)}
 .madeby{text-align:center;color:var(--muted);font-size:.85rem;margin:28px 0 6px}
 main{padding:18px 22px 40px;min-width:0}
 .thead h1{font:700 1.5rem var(--display);margin:0}
@@ -233,6 +238,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
       <button data-tool="ai"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="11" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 15.5h5"/></svg>AI Detector</button>
       <button data-tool="human"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4-5.5 7-5.5s5.5 1.5 7 5.5"/></svg>Humanizer</button>
       <button data-tool="cite"><svg viewBox="0 0 24 24"><path d="M7 10c-2 0-3 1.3-3 3v3h4v-4H6c0-1 .5-2 2-2zM16 10c-2 0-3 1.3-3 3v3h4v-4h-2c0-1 .5-2 2-2z"/></svg>Citation Generator</button>
+      <button data-tool="proof"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>Proofread</button>
     </nav>
     <div class="foot">Free: 200 words per check, 2 humanizes a day.<br><a href="#" id="footPro" hidden>Pro: unlimited words, $5/month or $39.99/year<br></a><a href="/premium/">See Premium plans</a><br><a href="/blog/">Blog</a><br><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/refund.html">Refunds</a> · <a href="/contact.html">Contact</a><br><a href="#" id="delMine">Delete my saved texts</a><br>Created by Arush Deora</div>
   </aside>
@@ -283,6 +289,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
         <div><b><a href="/ai-detector/">AI Detector</a></b>Shows how much of your text reads as AI-written, sentence by sentence.</div>
         <div><b><a href="/ai-humanizer/">AI Humanizer</a></b>Rewrites stiff, robotic drafts so they read naturally, in your own voice.</div>
         <div><b><a href="/citation-generator/">Citation Generator</a></b>APA, MLA and Chicago references from a link, DOI, ISBN or book title. Part of Pro.</div>
+        <div><b>Proofread</b>Write your essay in EssayWiz and it records how your work grew, so you can show your teacher it's yours if you're ever wrongly flagged. Part of Pro.</div>
       </div>
       <section class="says" id="says" hidden aria-labelledby="saysH"><h2 id="saysH">What students say</h2><p class="avg"></p><div class="says-grid"></div></section>
       <h2>Questions</h2>
@@ -347,6 +354,7 @@ const ERR = {
   need_pro: "Go Pro for $5 USD a month to keep using EssayWiz.",
   word_limit: "The free plan checks up to 200 words at a time. Go Pro for unlimited words, or check a shorter part.",
   pro_only_cite: "The Citation Generator is part of EssayWiz Pro.",
+  pro_only_proof: "Proofread is part of EssayWiz Pro. Write your essay in EssayWiz and get a proof report showing how your work grew.",
   not_rewritten: "We couldn't rewrite that. Paste the essay or paragraph itself (not instructions to the AI) and try again. This didn't use up a free humanize.",
   humanize_limit: "You've used your 2 free humanizes for today. Go Pro for unlimited humanizing, or come back tomorrow.",
   free_daily_cap: "You've reached today's free fair-use limit. Go Pro for unlimited use, or come back tomorrow.",
@@ -395,6 +403,7 @@ const TOOLS = {
   ai:      { title: "AI Detector", desc: "See how much of your text reads as AI-written, sentence by sentence.", btn: "Detect AI", out: "AI report" },
   human:   { title: "Humanizer", desc: "Rewrite AI-sounding text so it reads naturally, like a real student wrote it.", btn: "Humanize", out: "Humanized text" },
   cite:    { title: "Citation Generator", desc: "Make APA, MLA and Chicago references from a link, DOI, ISBN or book title.", btn: "Make citation", out: "Your citations" },
+  proof:   { title: "Proofread", desc: "Write your essay here and EssayWiz records how it grows: every session, every draft, typed vs pasted. If you're ever wrongly flagged, show your teacher the proof report.", btn: "Make proof report", out: "Writing proof" },
 };
 let tool = "check"; const modeOf = { para: "standard" }; const outs = {};
 const EMPTY = {
@@ -405,6 +414,7 @@ const EMPTY = {
   ai: "Your AI-written percentage and the sentences that sound like AI will appear here.",
   human: "Your humanized text will appear here, with changes highlighted.",
   cite: "Your citations and reference list will appear here.",
+  proof: "Start writing in Your text. EssayWiz saves your writing history in this browser as you go. Tap Make proof report any time to see it.",
 };
 Object.keys(TOOLS).forEach(k => {
   const d = el("div"); d.dataset.tool = k; d.hidden = true;
@@ -423,6 +433,7 @@ function selectTool(k){
   $("oMeta").textContent = "";
   try { history.replaceState(null, "", "#" + k); } catch {}
   setStatus("");
+  proofOnSelect(k);
 }
 $("nav").addEventListener("click", e => { const b = e.target.closest("button[data-tool]"); if (b) selectTool(b.dataset.tool); });
 
@@ -675,8 +686,128 @@ async function runCite(){
   });
 }
 
+/* ---------- Proofread: writing-process proof (Pro) ----------
+   While the Proofread tool is open, the text box records how the essay grows: active writing time,
+   sessions, typed vs pasted characters, big pastes and a draft every 30 seconds. Everything is saved
+   only in this browser (localStorage); nothing is sent to EssayWiz's servers. */
+const PROOF_KEY = "ew_proof_v1", PROOF_GAP = 5 * 60e3, PROOF_SESSION = 30 * 60e3, PROOF_SNAP = 30e3, PROOF_MAX = 1500000;
+let proof = null, proofOn = false, proofOther = "", proofPending = 0, proofSaveT = 0;
+function proofLoad(){ try { proof = JSON.parse(localStorage.getItem(PROOF_KEY) || "null"); } catch { proof = null; } return proof; }
+function proofNew(text){ const t = Date.now(); proof = { v: 1, created: t, last: t, activeMs: 0, typed: 0, pasted: 0, deleted: 0, sessions: [{ s: t, e: t }], pastes: [], snaps: [{ t, x: text || "" }], text: text || "" }; if (text) proof.pasted = text.length; proofSave(true); }
+function proofSave(now){
+  clearTimeout(proofSaveT);
+  const write = () => {
+    if (!proof) return;
+    // Keep storage small: thin out old drafts (keep the first and the newest) when the history gets large.
+    let size = proof.snaps.reduce((n, x) => n + x.x.length, 0);
+    while (size > PROOF_MAX && proof.snaps.length > 4){ proof.snaps = proof.snaps.filter((x, i, a) => i === 0 || i >= a.length - 2 || i % 2 === 1); size = proof.snaps.reduce((n, x) => n + x.x.length, 0); }
+    try { localStorage.setItem(PROOF_KEY, JSON.stringify(proof)); } catch { setStatus("Your browser storage is full, so Proofread couldn't save the latest history.", true); }
+  };
+  if (now) write(); else proofSaveT = setTimeout(write, 1500);
+}
+function proofSnap(force){ if (!proof) return; const last = proof.snaps[proof.snaps.length - 1]; if (last.x === input.value) return; if (force || Date.now() - last.t >= PROOF_SNAP) proof.snaps.push({ t: Date.now(), x: input.value }); }
+function proofOnSelect(k){
+  const entering = k === "proof", wasOn = proofOn;
+  $("file").closest("label").hidden = entering;
+  $("contrib").closest("label").hidden = entering;
+  if (entering && !wasOn){
+    proofOn = !freeLimited();
+    if (!proofOn){ setStatus(ERR.pro_only_proof); return; }
+    proofOther = input.value;
+    if (proofLoad()){ input.value = proof.text; }
+    else proofNew(input.value);
+    updateCount();
+    $("oMeta").innerHTML = '<span class="proofrec">Recording</span>';
+    setStatus("Proofread is on: your writing history is being saved in this browser. Write your essay here instead of pasting a finished one.");
+  } else if (!entering && wasOn){
+    proofSnap(true); proofSave(true); proofOn = false;
+    input.value = proofOther; updateCount();
+  }
+}
+input.addEventListener("paste", e => { if (proofOn) proofPending = ((e.clipboardData && e.clipboardData.getData("text")) || "").length; });
+input.addEventListener("drop", e => { if (proofOn) proofPending = ((e.dataTransfer && e.dataTransfer.getData("text")) || "").length; });
+input.addEventListener("input", e => {
+  if (!proofOn || !proof || freeLimited()) return;
+  const now = Date.now(), gap = now - proof.last, delta = input.value.length - proof.text.length, kind = e.inputType || "";
+  if (gap < PROOF_GAP) proof.activeMs += gap;
+  const ses = proof.sessions[proof.sessions.length - 1];
+  if (gap > PROOF_SESSION) proof.sessions.push({ s: now, e: now }); else ses.e = now;
+  if (/^insertFrom(Paste|Drop)/.test(kind)){ const n = proofPending || Math.max(0, delta); proof.pasted += n; if (n >= 40) proof.pastes.push({ t: now, n }); proofPending = 0; if (n >= 40) proofSnap(true); }
+  else if (/^(insertText|insertLineBreak|insertParagraph|insertComposition|insertReplacementText)/.test(kind)) proof.typed += Math.max(0, delta);
+  else if (/^delete/.test(kind)) proof.deleted += Math.max(0, -delta);
+  else if (delta > 0){ proof.pasted += delta; if (delta >= 40) proof.pastes.push({ t: now, n: delta }); }   // undo/redo or anything we can't tell apart
+  else proof.deleted += -delta;
+  proof.last = now; proof.text = input.value; proofSnap(false); proofSave(false);
+});
+document.addEventListener("visibilitychange", () => { if (proofOn && document.hidden){ proofSnap(true); proofSave(true); } });
+window.addEventListener("pagehide", () => { if (proofOn){ proofSnap(true); proofSave(true); } });
+
+// Billing status can arrive after the tool opens: start or stop recording to match the plan.
+function proofPlanSync(){
+  if (tool !== "proof") return;
+  if (!proofOn && !freeLimited()) proofOnSelect("proof");
+  else if (proofOn && freeLimited()){ proofSnap(true); proofSave(true); proofOn = false; input.value = proofOther; updateCount(); $("oMeta").textContent = ""; setStatus(ERR.pro_only_proof); }
+}
+const fmtDur = ms => { const m = Math.round(ms / 60000); return ms < 60000 ? "under 1 min" : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+const fmtTime = t => new Date(t).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+async function proofId(){ const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify({ c: proof.created, s: proof.snaps.map(x => [x.t, x.x.length]), t: proof.text }))); return [...new Uint8Array(b)].slice(0, 6).map(x => x.toString(16).padStart(2, "0")).join("").toUpperCase(); }
+function proofStats(){
+  const total = proof.typed + proof.pasted, typedPct = total ? Math.round(proof.typed / total * 100) : 0;
+  const series = proof.snaps.map(x => ({ t: x.t, w: words(x.x).length })).concat([{ t: proof.last, w: words(proof.text).length }]);
+  return { typedPct, series, words: words(proof.text).length, sessions: proof.sessions.filter(x => x.e - x.s > 30e3 || proof.sessions.length === 1) };
+}
+function proofChartSvg(series){
+  const W = 600, H = 120, max = Math.max(1, ...series.map(p => p.w)), n = Math.max(1, series.length - 1);
+  const pts = series.map((p, i) => `${(i / n * (W - 20) + 10).toFixed(1)},${(H - 10 - p.w / max * (H - 24)).toFixed(1)}`).join(" ");
+  return `<svg class="proofchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Word count over time, from 0 to ${max} words"><polyline points="${pts}"/></svg>`;
+}
+async function runProof(){
+  const host = outs.proof; host.textContent = "";
+  if (!proofOn || !proof){ setStatus(ERR.pro_only_proof, true); return; }
+  proofSnap(true); proofSave(true);
+  const st = proofStats(), id = await proofId();
+  const cards = el("div", "cards");
+  cards.append(card("ok", fmtDur(proof.activeMs), "Active writing time", 100), card("ok", String(st.sessions.length), "Writing sessions", 100),
+    card(level(100 - st.typedPct, 30, 60), st.typedPct + "%", "Typed (not pasted)", st.typedPct), card("ok", String(proof.snaps.length), "Saved drafts", 100));
+  host.append(cards);
+  const g = el("div"); g.append(el("h3", null, "How your essay grew")); g.insertAdjacentHTML("beforeend", proofChartSvg(st.series));
+  g.append(el("p", "note", `${fmtTime(proof.created)} → ${fmtTime(proof.last)} · ${st.words} words now`)); host.append(g);
+  // Replay any saved draft.
+  const r = el("div"); r.append(el("h3", null, "Replay your drafts"));
+  const slider = el("input"); slider.type = "range"; slider.min = 0; slider.max = proof.snaps.length - 1; slider.value = proof.snaps.length - 1; slider.style.width = "100%";
+  const when = el("p", "note"), view = el("div", "proofreplay");
+  const show = () => { const sn = proof.snaps[+slider.value]; when.textContent = `Draft ${+slider.value + 1} of ${proof.snaps.length} · ${fmtTime(sn.t)} · ${words(sn.x).length} words`; view.textContent = sn.x || "(empty)"; };
+  slider.oninput = show; show(); r.append(slider, when, view); host.append(r);
+  const ses = el("div"); ses.append(el("h3", null, "Writing sessions")); const ul = el("ul", "items");
+  st.sessions.slice(-30).forEach(x => { const li = el("li", "p", `${fmtTime(x.s)} · ${fmtDur(x.e - x.s)}`); ul.append(li); }); ses.append(ul); host.append(ses);
+  if (proof.pastes.length){ const ps = el("div"); ps.append(el("h3", null, "Large pastes")); const pu = el("ul", "items"); proof.pastes.slice(-20).forEach(x => pu.append(el("li", "a", `${fmtTime(x.t)} · ${x.n} characters pasted`))); ps.append(pu, el("p", "note", "Pasting is normal for quotes and notes. Make sure pasted quotes are in quotation marks with a citation.")); host.append(ps); }
+  host.append(el("p", "note", `Report ID ${id}. Your writing history is saved only in this browser on this device. The report shows what EssayWiz recorded while you wrote here; your school decides how to use it.`));
+  const acts = el("div", "actions");
+  const dl = el("button", "primary", "Download proof report"); dl.type = "button"; dl.onclick = () => proofDownload(st, id);
+  const fresh = el("button", null, "Start a new essay"); fresh.type = "button";
+  fresh.onclick = () => { if (!confirm("Start a new essay? This clears the saved writing history in this browser. Download your proof report first if you need it.")) return; input.value = ""; proofNew(""); updateCount(); host.textContent = ""; setStatus("New essay started. Proofread is recording."); };
+  acts.append(dl, fresh); host.append(acts);
+  setStatus("Your proof report is ready on the right.");
+}
+function proofDownload(st, id){
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const drafts = proof.snaps.map((x, i) => `<details${i === proof.snaps.length - 1 ? " open" : ""}><summary>Draft ${i + 1} · ${esc(fmtTime(x.t))} · ${words(x.x).length} words</summary><pre>${esc(x.x)}</pre></details>`).join("");
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EssayWiz writing proof ${id}</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;max-width:820px;margin:24px auto;padding:0 16px;color:#1b2333}h1{margin:0}.k{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}.k div{border:1px solid #d9dfe9;border-radius:10px;padding:10px}.k b{display:block;font-size:1.4rem}pre{white-space:pre-wrap;background:#f6f8fb;border:1px solid #d9dfe9;border-radius:8px;padding:10px}svg{width:100%;height:120px;border:1px solid #d9dfe9;border-radius:10px}polyline{fill:none;stroke:#2f6fd6;stroke-width:2}small{color:#5b6475}</style></head><body>
+<h1>Writing proof</h1><small>Made with EssayWiz Proofread · essaywiz.app · Report ID ${id} · Downloaded ${esc(fmtTime(Date.now()))}</small>
+<div class="k"><div><b>${esc(fmtDur(proof.activeMs))}</b>Active writing time</div><div><b>${st.sessions.length}</b>Writing sessions</div><div><b>${st.typedPct}%</b>Typed (not pasted)</div><div><b>${proof.snaps.length}</b>Saved drafts</div></div>
+<p>Started ${esc(fmtTime(proof.created))} · last edit ${esc(fmtTime(proof.last))} · ${st.words} words in the final draft · ${proof.typed} characters typed, ${proof.pasted} pasted, ${proof.deleted} deleted.</p>
+<h2>How the essay grew</h2>${proofChartSvg(st.series)}
+<h2>Writing sessions</h2><ul>${st.sessions.map(x => `<li>${esc(fmtTime(x.s))} · ${esc(fmtDur(x.e - x.s))}</li>`).join("")}</ul>
+${proof.pastes.length ? `<h2>Large pastes</h2><ul>${proof.pastes.map(x => `<li>${esc(fmtTime(x.t))} · ${x.n} characters</li>`).join("")}</ul>` : ""}
+<h2>Drafts</h2>${drafts}
+<p><small>This report shows the writing history EssayWiz recorded in the writer's browser while they wrote in EssayWiz. It is offered as supporting evidence of the writing process; the school decides how to use it.</small></p></body></html>`;
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([html], { type: "text/html" })); a.download = `EssayWiz-writing-proof-${id}.html`; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
 /* ---------- Run button ---------- */
-const RUN = { check: runCheck, para: runPara, grammar: runGrammar, plag: runPlag, ai: runAI, human: runHuman, cite: runCite };
+const RUN = { check: runCheck, para: runPara, grammar: runGrammar, plag: runPlag, ai: runAI, human: runHuman, cite: runCite, proof: runProof };
 
 /* ---------- Word download & upload ---------- */
 function loadScript(src, ns){ return new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = src; if (ns) sc.setAttribute("data-namespace", ns); sc.onload = ok; sc.onerror = () => bad(new Error("load")); document.head.append(sc); }); }
@@ -729,7 +860,7 @@ $("signInTop").onclick = openGate;
 $("signOut").onclick = () => { setToken(null); try { google.accounts.id.disableAutoSelect(); } catch {} setStatus("Signed out."); };
 function onCredential(resp){ setToken(resp && resp.credential); if (!signedIn()){ setStatus("Sign-in didn't finish. Please try again.", true); return; } $("gate").hidden = true; setStatus(`Signed in as ${auth.user.name || auth.user.email}.`); refreshBilling(); const next = auth.pending; auth.pending = null; if (next) next(); }
 function requireLogin(fn){ return function(...args){ if (!auth.clientId || signedIn()) return fn.apply(this, args); auth.pending = () => fn.apply(this, args); openGate(); }; }
-$("run").onclick = requireLogin(() => { if (tool === "cite" && freeLimited()){ openPro(ERR.pro_only_cite); return; } if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
+$("run").onclick = requireLogin(() => { if (tool === "proof"){ if (freeLimited()){ openPro(ERR.pro_only_proof); return; } RUN.proof(); return; } if (tool === "cite" && freeLimited()){ openPro(ERR.pro_only_cite); return; } if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
 (async function initAuth(){
   const wantUpgrade = /^#upgrade/.test(location.hash), wantYearly = location.hash === "#upgrade-yearly";   // read now: selectTool() rewrites the hash
   try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
@@ -823,6 +954,7 @@ function subId(){ try { return localStorage.getItem("sr_subid") || ""; } catch {
 const freeLimited = () => bill.enabled && !bill.pro;
 const overLimitMsg = () => `The free plan checks up to ${bill.limit} words at a time, and your text has ${words(input.value).length}. Go Pro for unlimited words, or check a shorter part.`;
 function renderPlan(){
+  setTimeout(proofPlanSync, 0);
   const p = $("planPill"); $("footPro").hidden = !bill.enabled || bill.pro; $("premTop").hidden = bill.pro && !(bill.cfg && bill.cfg.owner);
   updateCount();
   if (!bill.enabled){ p.hidden = true; return; }
