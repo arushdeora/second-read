@@ -131,7 +131,8 @@ export function isMetaReply(out, original) {
   const t = String(out || "").trim();
   if (!t) return false;
   const low = String(original || "").toLowerCase();
-  if (META_START.test(t) && !low.startsWith(t.slice(0, 20).toLowerCase())) return true;
+  // An essay may itself start with "Unfortunately," or "Thank you": then a rewrite starting that way is fine.
+  if (META_START.test(t) && !META_START.test(String(original || "").trim()) && !low.startsWith(t.slice(0, 20).toLowerCase())) return true;
   const m = t.match(META_ANY);
   return !!(m && !low.includes(m[0].toLowerCase()));
 }
