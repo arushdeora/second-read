@@ -634,6 +634,7 @@ async function runAI(){
     const ring = el("div", "ring"); const dial = el("div", "dial"); dial.style.setProperty("--p", ap); dial.style.setProperty("--c", ap >= 60 ? "var(--bad)" : ap >= 30 ? "var(--warn)" : "var(--good)"); dial.append(el("div", null, ap + "%"));
     const p = el("p"); p.append(el("b", null, ap >= 60 ? "Likely AI-written" : ap >= 30 ? "Partly AI-written" : "Looks human-written"), document.createElement("br"), document.createTextNode(d.summary || ""));
     ring.append(dial, p); host.append(ring);
+    if (d.shortText) host.append(el("p", "note", `Only ${d.words || "a few"} words: short texts can't be judged reliably, so treat this as a rough guide. Check 150+ words for a better reading.`));
     host.append(highlight(text, aiRanges(sents, d, 50)));
     const flagged = (d.sentences || []).filter(x => x.likelihood >= 50).sort((a, b) => b.likelihood - a.likelihood).slice(0, 8);
     if (flagged.length){ const ul = el("ul", "items"); flagged.forEach(x => { const s = sents.find(y => y.i === Number(x.i)); const li = el("li", "a", `“${s ? s.text : ""}”`); li.append(el("small", null, `${x.likelihood}% AI-like · ${x.reason || ""}`)); ul.append(li); }); host.append(ul); }
