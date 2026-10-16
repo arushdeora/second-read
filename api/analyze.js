@@ -1,6 +1,7 @@
 import { guard, cleanSentences, tooLong, askClaude, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
 import { ownScores } from "./_detector.js";
+import { matchGenerated } from "./_fingerprint.js";
 
 // Our own trained detector. It runs inside this server (api/_detector.js + _detector-model.js),
 // or on a bigger hosted model if DETECTOR_URL is set (see training/ and detector-space/).
@@ -95,7 +96,7 @@ Reply with ONLY JSON:
 Include every sentence number exactly once.`;
 
   try {
-    const own = await ownModel(sentences.map(s => s.text));
+    const [own, ours] = await Promise.all([ownModel(sentences.map(s => s.text)), matchGenerated(sentences.map(s => s.text))]);
     const onlyOwn = own && envv("DETECTOR_MODE").toLowerCase() === "only";
     const r = onlyOwn
       ? { score: null, summary: "", sentences: sentences.map((s, k) => ({ i: s.i, likelihood: own[k], reason: own[k] >= 50 ? "Our detector found AI-like patterns here." : "Reads like human writing to our detector." })) }
@@ -129,12 +130,24 @@ Include every sentence number exactly once.`;
     score = Math.round(clamp(score));
     // Rescale sentence likelihoods so they agree with the overall result.
     const k = modelMean > 0 ? Math.min(1.2, score / modelMean) : 1;
-    const sentencesOut = list.map(x => ({ ...x, likelihood: Math.round(clamp(x.likelihood * k)) }));
+    let sentencesOut = list.map(x => ({ ...x, likelihood: Math.round(clamp(x.likelihood * k)) }));
+    // Text that EssayWiz's own Humanizer or Paraphraser produced is known machine-rewritten text:
+    // mark those sentences and make sure the overall score reflects their share of the text.
+    const ourBy = new Map(sentences.map((s, j) => [s.i, ours[j]]));
+    let rewritten = null;
+    if (ours.some(Boolean)) {
+      let ww = 0, wm = 0, tool = null;
+      sentences.forEach((s, j) => { const w = Math.max(1, wordsOf(s.text).length); ww += w; if (ours[j]) { wm += w; tool = tool || ours[j]; } });
+      const share = ww ? wm / ww : 0;
+      sentencesOut = sentencesOut.map(x => ourBy.get(x.i) ? { ...x, likelihood: 97, reason: `Rewritten by EssayWiz's ${ourBy.get(x.i) === "humanizer" ? "Humanizer" : "Paraphraser"}`, ours: true } : x);
+      score = Math.round(clamp(Math.max(score, share >= 0.5 ? 70 + 30 * share : 100 * share)));
+      rewritten = { share: Math.round(share * 100), tool };
+    }
     // When the calibrated score is low, don't show a model summary that may still talk about AI signs.
-    const summary = (score < 30 ? "" : String(r.summary || "")) || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector.");
+    const summary = rewritten && rewritten.share >= 30 ? `About ${rewritten.share}% of this text matches output from EssayWiz's ${rewritten.tool === "humanizer" ? "Humanizer" : "Paraphraser"}, so it reads as machine-rewritten. Rewrite those sentences in your own words.` : (score < 30 ? "" : String(r.summary || "")) || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector.");
     await collect(req, body, sentences.map(s => s.text).join(" "), { tool: "ai", modelScore: score });
     res.status(200).json({
-      score, summary, sentences: sentencesOut, shortText, words: st.words, engine: own ? (onlyOwn ? "own" : "own+claude") : "claude",
+      score, summary, sentences: sentencesOut, shortText, words: st.words, rewritten, engine: own ? (onlyOwn ? "own" : "own+claude") : "claude",
       signals: [
         { label: `Sentence variety ${st.cv >= 0.45 ? "high" : st.cv >= 0.3 ? "medium" : "low"}`, level: st.cv >= 0.45 ? "good" : st.cv >= 0.3 ? "warn" : "bad" },
         { label: `${st.phraseHits} stock AI phrase${st.phraseHits === 1 ? "" : "s"}`, level: st.phraseRate < 0.4 ? "good" : st.phraseRate < 1 ? "warn" : "bad" },

@@ -1,6 +1,7 @@
 import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
 import { refundHumanize } from "./_billing.js";
+import { markGenerated } from "./_fingerprint.js";
 
 // A full rewrite of a long essay can take a while.
 export const config = { maxDuration: 60 };
@@ -38,6 +39,7 @@ ${text}
       if (!out.text) return res.status(502).json({ code: "upstream_error" });
       // With the student's permission, keep the machine-written result as an "ai" example for training.
       await collect(req, body, out.text, { tool: "human", label: "ai", origin: "generated" });
+      await markGenerated(out.text, "humanizer");
       return res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
     } catch (e) { return fail(res, e); }
   }
@@ -58,7 +60,9 @@ Reply with ONLY a JSON array: [{"i": <number>, "rewrite": "<new sentence or two>
 
   try {
     const r = await askClaude(prompt, Math.min(8000, 400 + targets.length * 120));
-    res.status(200).json({ rewrites: Array.isArray(r) ? r : [] });
+    const rewrites = Array.isArray(r) ? r : [];
+    await markGenerated(rewrites.map(x => String((x && x.rewrite) || "")).join("\n"), "humanizer");
+    res.status(200).json({ rewrites });
   } catch (e) { fail(res, e); }
 }
 
