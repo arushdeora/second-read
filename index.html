@@ -692,6 +692,8 @@ async function runCite(){
    only in this browser (localStorage); nothing is sent to EssayWiz's servers. */
 const PROOF_KEY = "ew_proof_v1", PROOF_GAP = 5 * 60e3, PROOF_SESSION = 30 * 60e3, PROOF_SNAP = 30e3, PROOF_MAX = 1500000;
 let proof = null, proofOn = false, proofOther = "", proofPending = 0, proofSaveT = 0;
+// Proofread needs a signed-in Pro member (or the owner). Signed-out visitors and free accounts are not recorded.
+const proofAllowed = () => !!auth.cfgLoaded && (!auth.clientId || (signedIn() && !!bill.cfg && !freeLimited()));
 function proofLoad(){ try { proof = JSON.parse(localStorage.getItem(PROOF_KEY) || "null"); } catch { proof = null; } return proof; }
 function proofNew(text){ const t = Date.now(); proof = { v: 1, created: t, last: t, activeMs: 0, typed: 0, pasted: 0, deleted: 0, sessions: [{ s: t, e: t }], pastes: [], snaps: [{ t, x: text || "" }], text: text || "" }; if (text) proof.pasted = text.length; proofSave(true); }
 function proofSave(now){
@@ -711,7 +713,7 @@ function proofOnSelect(k){
   $("file").closest("label").hidden = entering;
   $("contrib").closest("label").hidden = entering;
   if (entering && !wasOn){
-    proofOn = !freeLimited();
+    proofOn = proofAllowed();
     if (!proofOn){ setStatus(ERR.pro_only_proof); return; }
     proofOther = input.value;
     if (proofLoad()){ input.value = proof.text; }
@@ -727,7 +729,7 @@ function proofOnSelect(k){
 input.addEventListener("paste", e => { if (proofOn) proofPending = ((e.clipboardData && e.clipboardData.getData("text")) || "").length; });
 input.addEventListener("drop", e => { if (proofOn) proofPending = ((e.dataTransfer && e.dataTransfer.getData("text")) || "").length; });
 input.addEventListener("input", e => {
-  if (!proofOn || !proof || freeLimited()) return;
+  if (!proofOn || !proof || !proofAllowed()) return;
   const now = Date.now(), gap = now - proof.last, delta = input.value.length - proof.text.length, kind = e.inputType || "";
   if (gap < PROOF_GAP) proof.activeMs += gap;
   const ses = proof.sessions[proof.sessions.length - 1];
@@ -745,8 +747,8 @@ window.addEventListener("pagehide", () => { if (proofOn){ proofSnap(true); proof
 // Billing status can arrive after the tool opens: start or stop recording to match the plan.
 function proofPlanSync(){
   if (tool !== "proof") return;
-  if (!proofOn && !freeLimited()) proofOnSelect("proof");
-  else if (proofOn && freeLimited()){ proofSnap(true); proofSave(true); proofOn = false; input.value = proofOther; updateCount(); $("oMeta").textContent = ""; setStatus(ERR.pro_only_proof); }
+  if (!proofOn && proofAllowed()) proofOnSelect("proof");
+  else if (proofOn && !proofAllowed()){ proofSnap(true); proofSave(true); proofOn = false; input.value = proofOther; updateCount(); $("oMeta").textContent = ""; setStatus(ERR.pro_only_proof); }
 }
 const fmtDur = ms => { const m = Math.round(ms / 60000); return ms < 60000 ? "under 1 min" : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
 const fmtTime = t => new Date(t).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -851,6 +853,7 @@ function setToken(t){
 }
 function signedIn(){ return !!(auth.token && auth.user && auth.user.exp * 1000 > Date.now() + 30000); }
 function renderAcct(){
+  setTimeout(proofPlanSync, 0);
   const need = !!auth.clientId; $("acct").hidden = !(need && signedIn()); $("signInTop").hidden = !(need && !signedIn());
   if (auth.user){ $("acctName").textContent = auth.user.given_name || auth.user.name || ""; if (auth.user.picture) $("acctPic").src = auth.user.picture; $("acctPic").hidden = !auth.user.picture; }
 }
@@ -860,10 +863,11 @@ $("signInTop").onclick = openGate;
 $("signOut").onclick = () => { setToken(null); try { google.accounts.id.disableAutoSelect(); } catch {} setStatus("Signed out."); };
 function onCredential(resp){ setToken(resp && resp.credential); if (!signedIn()){ setStatus("Sign-in didn't finish. Please try again.", true); return; } $("gate").hidden = true; setStatus(`Signed in as ${auth.user.name || auth.user.email}.`); refreshBilling(); const next = auth.pending; auth.pending = null; if (next) next(); }
 function requireLogin(fn){ return function(...args){ if (!auth.clientId || signedIn()) return fn.apply(this, args); auth.pending = () => fn.apply(this, args); openGate(); }; }
-$("run").onclick = requireLogin(() => { if (tool === "proof"){ if (freeLimited()){ openPro(ERR.pro_only_proof); return; } RUN.proof(); return; } if (tool === "cite" && freeLimited()){ openPro(ERR.pro_only_cite); return; } if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
+$("run").onclick = requireLogin(() => { if (tool === "proof"){ if (!proofAllowed()){ openPro(ERR.pro_only_proof); return; } RUN.proof(); return; } if (tool === "cite" && freeLimited()){ openPro(ERR.pro_only_cite); return; } if (tool !== "cite" && freeLimited() && words(input.value).length > bill.limit){ openPro(overLimitMsg()); return; } RUN[tool](); });
 (async function initAuth(){
   const wantUpgrade = /^#upgrade/.test(location.hash), wantYearly = location.hash === "#upgrade-yearly";   // read now: selectTool() rewrites the hash
   try { const c = await fetch("/api/config").then(r => r.json()); auth.clientId = c.googleClientId || null; } catch {}
+  auth.cfgLoaded = true; setTimeout(proofPlanSync, 0);
   if (!auth.clientId) return;
   try { setToken(localStorage.getItem("sr_tok")); } catch {}
   renderAcct(); refreshBilling();
