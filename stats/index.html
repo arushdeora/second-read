@@ -42,6 +42,15 @@ h1{font:700 1.6rem var(--display);margin:0 0 4px}h2{font:700 1.1rem var(--displa
 .tile .v{font:700 1.65rem/1.2 var(--display);margin:4px 0 2px;font-variant-numeric:tabular-nums}
 .tile .n{color:var(--muted);font-size:.8rem}
 .tile.pos .v{color:var(--good)}.tile.neg .v{color:var(--bad)}
+.lg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.lg{grid-template-columns:1fr}}
+.lg h3{margin:0 0 8px;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline}
+.lg h3 span{font-size:.8rem;color:var(--muted);font-weight:500}
+.lg ul{list-style:none;margin:0;padding:0;max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.lg li{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border-top:1px solid var(--line);font-size:.88rem}
+.lg li:first-child{border-top:0}
+.lg li small{color:var(--muted)}
+.lg .newc h3{color:var(--bar)} .lg .oldc h3{color:var(--muted)}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
 .chart{position:relative}svg{display:block;width:100%;height:auto}
@@ -166,6 +175,7 @@ function render() {
         </div></div>
       <div class="chart" id="chart"></div>
     </div>
+    ${loginsCard()}
     ${reviewsCard()}
     <div class="card"><h2>By tool</h2><div class="tbl">${toolTable()}</div></div>
     <div class="card"><details><summary>Daily numbers (table)</summary><div class="tbl">${dailyTable()}</div></details>
@@ -181,6 +191,15 @@ function render() {
   });
 }
 
+function loginsCard() {
+  const L = data.logins; if (!L) return "";
+  const when = r => r.at ? new Date(r.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : new Date(r.day + "T12:00:00").toLocaleDateString([], { month: "short", day: "numeric" });
+  const list = rows => rows.length ? `<ul>${rows.map(r => `<li><span>${when(r)} · User ${esc(r.user)}</span><small>${r.plan === "pro" ? "Pro" : "Free"} · ${n(r.checks)} check${r.checks === 1 ? "" : "s"}</small></li>`).join("")}</ul>` : `<p class="note">None in this period.</p>`;
+  return `<div class="card"><h2>New and returning sign-ins</h2><div class="lg">
+    <div class="newc"><h3>New users <span>${n(L.new.length)} first visit${L.new.length === 1 ? "" : "s"}</span></h3>${list(L.new)}</div>
+    <div class="oldc"><h3>Returning users <span>${n(L.returning.length)} visit${L.returning.length === 1 ? "" : "s"}</span></h3>${list(L.returning)}</div>
+  </div><p class="note">One line per person per day. Users are shown by a short anonymous ID because EssayWiz doesn't store names or emails.</p></div>`;
+}
 function reviewsCard() {
   const r = data.reviews; if (!r) return "";
   if (!r.count) return `<div class="card"><h2>Reviews</h2><p class="note">No reviews yet. Users are asked for one after they use a tool.</p></div>`;
