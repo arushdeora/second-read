@@ -638,7 +638,9 @@ async function runAI(){
     host.append(highlight(text, aiRanges(sents, d, 50)));
     const flagged = (d.sentences || []).filter(x => x.likelihood >= 50).sort((a, b) => b.likelihood - a.likelihood).slice(0, 8);
     if (flagged.length){ const ul = el("ul", "items"); flagged.forEach(x => { const s = sents.find(y => y.i === Number(x.i)); const li = el("li", "a", `“${s ? s.text : ""}”`); li.append(el("small", null, `${x.likelihood}% AI-like · ${x.reason || ""}`)); ul.append(li); }); host.append(ul); }
-    if (ap >= 30 || flagged.length){
+    if (d.rewritten && d.rewritten.share >= 30){
+      host.append(el("div", "next", "These sentences match text from EssayWiz's rewriting tools. Put them in your own words, with your own examples, before you hand anything in."));
+    } else if (ap >= 30 || flagged.length){
       const nx = el("div", "next"); const b = el("button", "primary big", "Humanize it"); b.type = "button";
       b.onclick = requireLogin(() => step(host, "Humanizing…", async sig2 => { const r = await api("/api/humanize", { mode: "full", text: text.trim() }, sig2); host.querySelectorAll(".rewrite-out").forEach(x => x.remove()); const w = resultText(host, "Humanized text", text.trim(), r.text, "Fill in any [bracketed] parts with your own examples, then run the AI Detector again."); w.classList.add("rewrite-out"); w.scrollIntoView({ behavior: "smooth" }); setStatus("Done."); }));
       nx.append(el("p", null, "Rewrite it so it reads naturally, like you wrote it."), b); host.append(nx);
