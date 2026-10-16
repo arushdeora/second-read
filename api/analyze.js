@@ -80,15 +80,16 @@ async function handler(req, res) {
 Do NOT treat these as AI evidence on their own: formal or academic tone, correct grammar, good vocabulary, clear structure, topic sentences, citations, non-native English patterns, or simply being well written. Many careful human writers produce this.
 
 Count as AI evidence only concrete markers: stock AI phrases ("delve", "it is important to note", "plays a crucial/pivotal role", "in today's rapidly evolving", "tapestry", "multifaceted", "navigate the landscape"), empty generic claims with no specifics, perfectly balanced lists of three repeated across sentences, hedging boilerplate, and the same sentence rhythm over and over.
-Count as human evidence: specific details, examples, names, numbers, personal opinions or experiences, uneven rhythm, informal or idiosyncratic wording, small mistakes (typos, a missing space after a comma).
-Summaries and literary analysis are normally written in the third person without "I": that is NOT AI evidence. Quoting or naming an author and their arguments is normal student work.
+Many AI texts avoid those buzzwords (students ask for "plain" or "student-like" writing, or run it through a humanizer). Judge the text as a whole too. These also count as AI evidence when several appear together: every paragraph built the same way (claim, explanation, neat one-line takeaway), a tidy aphorism closing each paragraph (like "and that makes all the difference"), examples that are textbook-standard rather than drawn from a specific source the student read, perfectly smooth prose with zero slips or quirks over many sentences, a staged casual voice (like "here's the thing" or "honestly, it's simple") that never says anything specific to the writer, and a conclusion that neatly restates the opening.
+Count as human evidence: specific details from a named source the student is working with (an article, a case, a film scene, page numbers), in-text citations like (Author, 2019), uneven rhythm, idiosyncratic wording, awkward or non-native phrasing, small mistakes (typos, a missing space after a comma, agreement errors).
+Summaries and literary analysis are normally written in the third person without "I": that is NOT AI evidence. Quoting or naming an author and their arguments is normal student work. Formal tone alone is never enough.
 
 Calibration for each sentence's "likelihood":
 - 0-20: ordinary human writing, including formal academic writing
 - 20-40: polished and generic but a human could easily write it
-- 40-70: two or more clear AI markers
-- 70-100: obviously machine-like (several stock phrases, empty and formulaic)
-A typical honest student essay should land mostly between 5 and 35.
+- 40-70: two or more clear AI markers, or a sentence in a text that reads machine-written as a whole
+- 70-100: obviously machine-like (several stock phrases, or the whole-text AI pattern above is clear and there is no human evidence)
+A typical honest student essay should land mostly between 5 and 35. An AI essay without buzzwords should still score 60+ when the whole-text pattern is clear.
 
 Text, split into numbered sentences:
 ${numbered}
@@ -109,8 +110,9 @@ Include every sentence number exactly once.`;
       : await askClaude(prompt, Math.min(8000, 600 + sentences.length * 60), { temperature: 0, model: process.env.AI_MODEL || undefined });
     if (own && !onlyOwn) {
       // Blend our model into Claude's per-sentence view. DETECTOR_WEIGHT (0-1) sets our model's share:
-      // 0.35 by default while our model is young; raise it as retraining improves accuracy.
-      const ww = Math.max(0, Math.min(1, Number(envv("DETECTOR_WEIGHT") || 0.35)));
+      // 0.15 by default: on a test of pre-ChatGPT university essays it flagged about half the human ones,
+      // so it only nudges Claude's view for now. Raise it once a retrained model does better.
+      const ww = Math.max(0, Math.min(1, Number(envv("DETECTOR_WEIGHT") || 0.15)));
       const ownBy = new Map(sentences.map((s, k) => [s.i, own[k]]));
       r.sentences = (Array.isArray(r.sentences) ? r.sentences : []).map(x => ownBy.has(Number(x.i)) ? { ...x, likelihood: ww * ownBy.get(Number(x.i)) + (1 - ww) * (Number(x.likelihood) || 0) } : x);
       r.score = null;
@@ -125,8 +127,13 @@ Include every sentence number exactly once.`;
     const modelScore = r.score == null ? modelMean : 0.5 * modelMean + 0.5 * clamp(Number(r.score) || modelMean);
     let score = 0.6 * modelScore + 0.4 * st.score;
     // False accusations are the worst error for students, so without measurable AI fingerprints the score
-    // stays low: no stock phrases at all caps it at 25 (55 only if the model is very sure), few phrases at 40.
-    if (st.phraseHits === 0) score = Math.min(score, modelMean >= 80 ? 55 : 25);
+    // stays low: no stock phrases caps it at 25 (45 if the model leans AI), few phrases at 40.
+    // But AI text with the buzzwords removed (plain prompts, humanizers) has none of those fingerprints,
+    // so when the model is confident on its own (75+), its view carries the score and can reach "AI".
+    // Only when Claude is part of the reading: our own small model alone isn't reliable enough to accuse.
+    const strongModel = !onlyOwn && modelMean >= 75;
+    if (strongModel) score = Math.max(score, 0.85 * modelMean);
+    else if (st.phraseHits === 0) score = Math.min(score, modelMean >= 60 ? 45 : 25);
     else if (st.phraseRate < 0.4) score = Math.min(score, 40);
     else if (st.phraseRate < 0.6) score = Math.min(score, 55);
     // Short texts can't be judged reliably: pull toward a low, neutral value and say so.
