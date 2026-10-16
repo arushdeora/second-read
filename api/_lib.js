@@ -15,6 +15,11 @@ export function meter(data, model) {
   m.searches += (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;
   m.model = model; m.calls++;
 }
+// Paid calls to outside services (e.g. AI detectors) add their cost here so budgets and /stats include it.
+export function meterExtra(usd) {
+  const m = meterStore.getStore();
+  if (m && usd > 0) { m.extraUsd = (m.extraUsd || 0) + usd; m.calls++; }
+}
 // Wrap a route so its usage is logged. The JSON reply is held back until the log is written,
 // because Vercel can stop a function as soon as its response is sent. Logging never breaks a request.
 export const tracked = (tool, fn) => async (req, res) => {

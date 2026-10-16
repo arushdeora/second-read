@@ -30,7 +30,7 @@ export function priceOf(model) {
 }
 export function costOf(m) {
   const [pin, pout] = priceOf(m.model);
-  return (m.inTok * pin + m.outTok * pout) / 1e6 + m.searches * SEARCH_PRICE;
+  return (m.inTok * pin + m.outTok * pout) / 1e6 + m.searches * SEARCH_PRICE + (m.extraUsd || 0);
 }
 
 const day = (d = new Date()) => d.toISOString().slice(0, 10);
