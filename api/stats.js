@@ -84,12 +84,15 @@ export default async function handler(req, res) {
     const fixedMonthly = Number(env("FIXED_MONTHLY_COSTS_USD")) || 0;
     const fixed = fixedMonthly * days / 30;
     const allUsers = new Set(); for (const d of Object.values(daily)) for (const u of d.users) allUsers.add(u);
+    // Returning = active in this period but first seen before it started (or, per day, before that day).
+    const startDay = dayList[0];
+    let returningUsers = 0; for (const u of allUsers) if ((firstSeen.get(u) || startDay) < startDay) returningUsers++;
     const today = daily[dayList[dayList.length - 1]];
 
     return res.status(200).json({
       days, since: sinceISO, generatedAt: now.toISOString(),
       summary: {
-        users: allUsers.size, newUsers: Object.values(daily).reduce((n, d) => n + d.newUsers, 0),
+        users: allUsers.size, newUsers: Object.values(daily).reduce((n, d) => n + d.newUsers, 0), returningUsers,
         activeToday: today ? today.users.size : 0, totalUsers: firstSeen.size,
         checks, failed, limitHits, words, searches,
         proActive, proSignups, subscriptionsKnown: subs.length, subStatus, subList,
@@ -97,7 +100,7 @@ export default async function handler(req, res) {
         aiCost: round(aiCost, 4), ownerAiCost: round(ownerCost, 4), costPerCheck: checks ? round(aiCost / checks, 4) : 0,
         fixedMonthly, fixed: round(fixed), profit: round(net - aiCost - fixed),
       },
-      daily: dayList.map(d => ({ day: d, users: daily[d].users.size, newUsers: daily[d].newUsers, checks: daily[d].checks, cost: round(daily[d].cost, 4), revenue: round(daily[d].revenue) })),
+      daily: dayList.map(d => ({ day: d, users: daily[d].users.size, newUsers: daily[d].newUsers, returning: Math.max(0, daily[d].users.size - daily[d].newUsers), checks: daily[d].checks, cost: round(daily[d].cost, 4), revenue: round(daily[d].revenue) })),
       tools: Object.values(tools).map(t => ({ ...t, cost: round(t.cost, 4), avgCost: round(t.cost / t.checks, 4) })).sort((a, b) => b.checks - a.checks),
       billing: billingEnabled(),
       reviews: {
