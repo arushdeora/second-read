@@ -1,5 +1,6 @@
 import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
+import { refundHumanize } from "./_billing.js";
 
 // A full rewrite of a long essay can take a while.
 export const config = { maxDuration: 60 };
@@ -27,7 +28,13 @@ TEXT:
 ${text}
 """`;
     try {
-      const out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.1 });
+      let out;
+      try { out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.1 }); }
+      catch (e) {
+        // The AI answered the text instead of rewriting it (guardrail in _lib.js): give the free humanize back.
+        if (e && e.code === "not_rewritten") await refundHumanize(req.srUser).catch(() => {});
+        throw e;
+      }
       if (!out.text) return res.status(502).json({ code: "upstream_error" });
       // With the student's permission, keep the machine-written result as an "ai" example for training.
       await collect(req, body, out.text, { tool: "human", label: "ai", origin: "generated" });

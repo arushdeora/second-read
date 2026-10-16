@@ -12,6 +12,8 @@
 //   FREE_HUMANIZE_DAILY free humanizes per student per day (default 2)
 //   FREE_DAILY_CHECKS   fair-use cap on free checks per student per day, to protect the AI bill (default 40)
 //   PRO_DAILY_CREDITS   fair-use cap for Pro members per day (default 400)
+//   FREE_USER_AI_USD    most Claude API cost one free student can use per day (default 0.30)
+//   PRO_USER_AI_USD     most Claude API cost one Pro member can use per day (default 3.00)
 //   RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET
 //                       switch on rupee payments for India (UPI, Google Pay, PhonePe, Paytm, RuPay and Indian cards)
 //   INR_PRICE           price of 1 month of Pro in rupees (default 199)
@@ -31,6 +33,8 @@ const FREE_WORDS = () => Number(env("FREE_WORD_LIMIT") || 200) || 200;
 const FREE_HUMANIZE = () => Number(env("FREE_HUMANIZE_DAILY") || 2);
 const FREE_DAILY = () => Number(env("FREE_DAILY_CHECKS") || 40) || 40;
 const PRO = () => Number(env("PRO_DAILY_CREDITS") || 400);
+const FREE_USER_AI = () => Number(env("FREE_USER_AI_USD") || 0.3);
+const PRO_USER_AI = () => Number(env("PRO_USER_AI_USD") || 3);
 const PRICE = () => (Number(env("PRO_PRICE") || 5) || 5).toFixed(2);
 const YEAR_PRICE = () => (Number(env("PRO_YEARLY_PRICE") || 39.99) || 39.99).toFixed(2);
 const PP = () => env("PAYPAL_ENV").toLowerCase() === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
@@ -41,7 +45,7 @@ const YEAR_PLAN_NAME = "EssayWiz Pro Yearly";
 const mem = new Map();
 const kvUrl = () => env("KV_REST_API_URL") || env("UPSTASH_REDIS_REST_URL");
 const kvTok = () => env("KV_REST_API_TOKEN") || env("UPSTASH_REDIS_REST_TOKEN");
-async function kv(cmd) {
+export async function kv(cmd) {
   if (kvUrl() && kvTok()) {
     try {
       const r = await fetch(kvUrl(), { method: "POST", headers: { authorization: "Bearer " + kvTok(), "content-type": "application/json" }, body: JSON.stringify(cmd) });
@@ -243,11 +247,17 @@ export async function usage(user) {
 }
 
 // Check one request. Returns null if allowed, or an error {status, code}.
-export async function charge(user, cost, hintId, res, words = 0, feature = "") {
+// guards (from _lib.js): { userSpent: today's Claude cost for this student in USD, freePaused: true when the
+// site-wide daily AI budget is nearly used up, so free checks pause and Pro keeps working }.
+export async function charge(user, cost, hintId, res, words = 0, feature = "", guards = {}) {
   if (!billingEnabled() || !user || !user.sub || !cost) return null;
   if (isOwner(user)) { res.setHeader("x-sr-pro", "1"); return null; }   // the owner always has free access
   const info = await proStatus(user, hintId);
   res.setHeader("x-sr-pro", info.pro ? "1" : "0");
+  const spent = Number(guards.userSpent) || 0;
+  if (info.pro && spent >= PRO_USER_AI()) return { status: 429, code: "daily_cap" };
+  if (!info.pro && guards.freePaused) return { status: 503, code: "free_paused" };
+  if (!info.pro && spent >= FREE_USER_AI()) return { status: 429, code: "free_daily_cap" };
   if (info.pro) {
     // Pro: unlimited, with a generous daily fair-use cap to protect the AI bill.
     const key = `sr:use:${user.sub}:${day()}`;
@@ -271,6 +281,14 @@ export async function charge(user, cost, hintId, res, words = 0, feature = "") {
   if (used + 1 > FREE_DAILY()) return { status: 429, code: "free_daily_cap" };
   await kv(["INCRBY", key, 1]); await kv(["EXPIRE", key, 2 * 86400]);
   return null;
+}
+
+// Give a free humanize back when the rewrite failed (nothing useful was returned to the student).
+export async function refundHumanize(user) {
+  if (!user || !user.sub) return;
+  const hkey = `sr:hum:${user.sub}:${day()}`;
+  const used = Number(await kv(["GET", hkey]) || 0);
+  if (used > 0) await kv(["INCRBY", hkey, -1]);
 }
 
 export async function status(user, hintId) {

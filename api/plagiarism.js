@@ -1,4 +1,4 @@
-import { guard, cleanSentences, tooLong, extractJson, fail, meter, tracked } from "./_lib.js";
+import { guard, cleanSentences, tooLong, extractJson, fail, claudeCall, tracked } from "./_lib.js";
 import { dbEnabled, select, insert, update, sha, norm, wordCount } from "./_db.js";
 
 // Our own plagiarism index: every source found is saved (as a one-way hash of the sentence,
@@ -26,10 +26,6 @@ export const config = { maxDuration: 60 };
 
 const MODEL = process.env.PLAGIARISM_MODEL || process.env.MODEL || "claude-haiku-4-5-20251001";
 const MAX_SEARCHES = Number(process.env.PLAGIARISM_MAX_SEARCHES || 10);
-
-function apiKey() {
-  return String(process.env.ANTHROPIC_API_KEY || "").trim().replace(/^["']|["']$/g, "").trim();
-}
 
 async function handler(req, res) {
   const body = await guard(req, res, { cost: 2 }); if (!body) return;
@@ -60,25 +56,12 @@ When you are done searching, reply with ONLY a JSON object of this shape:
 If nothing matched, return an empty matches array.`;
 
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey(), "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2500,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCHES }],
-        messages: [{ role: "user", content: prompt }],
-      }),
+    const data = await claudeCall({
+      model: MODEL,
+      max_tokens: 2500,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCHES }],
+      messages: [{ role: "user", content: prompt }],
     });
-    const data = await r.json().catch(() => ({}));
-    meter(data, MODEL);
-    if (r.status === 429) return res.status(429).json({ code: "rate_limited" });
-    if (!r.ok) {
-      console.error("Anthropic API error (plagiarism)", r.status, data);
-      const msg = JSON.stringify(data);
-      if (r.status === 400 && /web.?search/i.test(msg)) return res.status(503).json({ code: "search_disabled" });
-      return res.status(502).json({ code: "upstream_error" });
-    }
     const blocks = Array.isArray(data.content) ? data.content : [];
     const searched = blocks.filter(b => b.type === "server_tool_use").map(b => b.input && b.input.query).filter(Boolean);
     const lastTool = blocks.map(b => b.type).lastIndexOf("web_search_tool_result");
