@@ -87,6 +87,26 @@ export default async function handler(req, res) {
     // Returning = active in this period but first seen before it started (or, per day, before that day).
     const startDay = dayList[0];
     let returningUsers = 0; for (const u of allUsers) if ((firstSeen.get(u) || startDay) < startDay) returningUsers++;
+    // Each sign-in day in the period, split into new (first ever visit that day) and returning users.
+    // Users are shown by a short anonymous ID only: EssayWiz doesn't store names or emails.
+    const userDay = new Map();
+    for (const e of events) {
+      if (e.plan === "owner" || !e.user_hash) continue;
+      const k = e.user_hash + "|" + String(e.created_at).slice(0, 10);
+      const v = userDay.get(k) || { last: e.created_at, checks: 0 };
+      v.last = e.created_at; if (e.tool !== "billing" && e.status < 400) v.checks++;
+      userDay.set(k, v);
+    }
+    const logins = { new: [], returning: [] };
+    for (const a of active) {
+      if (a.plan === "owner" || !daily[a.day]) continue;
+      const v = userDay.get(a.user_hash + "|" + a.day) || {};
+      const row = { day: a.day, at: v.last || null, user: String(a.user_hash).slice(0, 6), plan: a.plan || "free", checks: v.checks || 0 };
+      (firstSeen.get(a.user_hash) === a.day ? logins.new : logins.returning).push(row);
+    }
+    const byRecent = (x, y) => String(y.at || y.day).localeCompare(String(x.at || x.day));
+    logins.new.sort(byRecent); logins.returning.sort(byRecent);
+    logins.new = logins.new.slice(0, 100); logins.returning = logins.returning.slice(0, 100);
     const today = daily[dayList[dayList.length - 1]];
 
     return res.status(200).json({
@@ -101,6 +121,7 @@ export default async function handler(req, res) {
         fixedMonthly, fixed: round(fixed), profit: round(net - aiCost - fixed),
       },
       daily: dayList.map(d => ({ day: d, users: daily[d].users.size, newUsers: daily[d].newUsers, returning: Math.max(0, daily[d].users.size - daily[d].newUsers), checks: daily[d].checks, cost: round(daily[d].cost, 4), revenue: round(daily[d].revenue) })),
+      logins,
       tools: Object.values(tools).map(t => ({ ...t, cost: round(t.cost, 4), avgCost: round(t.cost / t.checks, 4) })).sort((a, b) => b.checks - a.checks),
       billing: billingEnabled(),
       reviews: {
