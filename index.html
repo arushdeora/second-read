@@ -208,7 +208,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 }
 @media (max-width:520px){ #planPill:not(.pro){display:none} #planPill.pro{margin-right:2px;padding:4px 9px} .acct #signOut{padding:6px 8px} }
 </style>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"EssayWiz","url":"https://essaywiz.app/","logo":"https://essaywiz.app/icon-512.png"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"EssayWiz","url":"https://essaywiz.app/","logo":"https://essaywiz.app/icon-512.png","founder":{"@type":"Person","name":"Arush Deora"}}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"EssayWiz","alternateName":"EssayWiz.app","url":"https://essaywiz.app/"}</script>
 </head>
 <body>
@@ -233,7 +233,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
       <button data-tool="human"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-4 4-5.5 7-5.5s5.5 1.5 7 5.5"/></svg>Humanizer</button>
       <button data-tool="cite"><svg viewBox="0 0 24 24"><path d="M7 10c-2 0-3 1.3-3 3v3h4v-4H6c0-1 .5-2 2-2zM16 10c-2 0-3 1.3-3 3v3h4v-4h-2c0-1 .5-2 2-2z"/></svg>Citation Generator</button>
     </nav>
-    <div class="foot">Free: 200 words per check, 2 humanizes a day.<br><a href="#" id="footPro" hidden>Pro: unlimited words, $5/month or $39.99/year<br></a><a href="/premium/">See Premium plans</a><br><a href="/blog/">Blog</a><br><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/refund.html">Refunds</a> · <a href="/contact.html">Contact</a><br><a href="#" id="delMine">Delete my saved texts</a></div>
+    <div class="foot">Free: 200 words per check, 2 humanizes a day.<br><a href="#" id="footPro" hidden>Pro: unlimited words, $5/month or $39.99/year<br></a><a href="/premium/">See Premium plans</a><br><a href="/blog/">Blog</a><br><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/refund.html">Refunds</a> · <a href="/contact.html">Contact</a><br><a href="#" id="delMine">Delete my saved texts</a><br>Made by Arush Deora</div>
   </aside>
 
   <main>
@@ -345,6 +345,7 @@ const ERR = {
   need_pro: "Go Pro for $5 USD a month to keep using EssayWiz.",
   word_limit: "The free plan checks up to 200 words at a time. Go Pro for unlimited words, or check a shorter part.",
   pro_only_cite: "The Citation Generator is part of EssayWiz Pro.",
+  not_rewritten: "We couldn't rewrite that. Paste the essay or paragraph itself (not instructions to the AI) and try again. This didn't use up a free humanize.",
   humanize_limit: "You've used your 2 free humanizes for today. Go Pro for unlimited humanizing, or come back tomorrow.",
   free_daily_cap: "You've reached today's free fair-use limit. Go Pro for unlimited use, or come back tomorrow.",
   daily_cap: "You've reached today's fair-use limit. It resets at midnight (UTC).",
@@ -353,6 +354,13 @@ const ERR = {
   not_found: "Couldn't find that source. Check the link, DOI or ISBN, or try the title with the author's name.",
   invalid_json: "The answer came back in an unexpected format. Try again.",
   search_disabled: "The plagiarism search is switched off right now.",
+  ai_unavailable: "EssayWiz's AI is taking a short break. Please try again in a little while.",
+  ai_budget: "EssayWiz is very busy today and has paused checks until midnight (UTC). Please come back later.",
+  free_paused: "Free checks are paused for now because EssayWiz is very busy. Pro keeps working, or try again later.",
+  busy: "The AI is overloaded right now. Wait a few seconds and try again.",
+  duplicate: "You just sent that same text. Wait for the first result.",
+  junk: "That doesn't look like normal writing. Paste your essay or paragraph and try again.",
+  refused: "The AI couldn't work on that text. Try a different passage.",
 };
 const errMsg = e => ERR[e && e.code] || "Couldn't reach the server. Try again in a moment.";
 async function api(path, body, signal){
@@ -366,7 +374,7 @@ async function api(path, body, signal){
   } catch (e) { throw { code: e && e.name === "AbortError" ? "cancelled" : "upstream_error" }; }
   const data = await res.json().catch(() => ({}));
   if (res.headers.get("x-sr-pro")){ bill.enabled = true; bill.pro = res.headers.get("x-sr-pro") === "1"; const wl = +res.headers.get("x-sr-word-limit"); if (wl) bill.limit = wl; renderPlan(); }
-  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "word_limit") openPro(overLimitMsg()); if (data.code === "pro_only_cite" || data.code === "humanize_limit") openPro(ERR[data.code]); throw { code: data.code || "upstream_error" }; }
+  if (!res.ok){ if (data.code === "need_login"){ setToken(null); openGate(); } if (data.code === "word_limit") openPro(overLimitMsg()); if (data.code === "pro_only_cite" || data.code === "humanize_limit" || data.code === "free_paused") openPro(ERR[data.code]); throw { code: data.code || "upstream_error" }; }
   return data;
 }
 function sentences(text){
