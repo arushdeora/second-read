@@ -316,18 +316,19 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 <div class="gate" id="pro" hidden role="dialog" aria-modal="true" aria-labelledby="proH">
   <div class="box pro-box">
     <h2 id="proH">EssayWiz Pro</h2>
-    <div class="period" role="group" aria-label="Billing period"><button type="button" data-period="month" aria-pressed="true">Monthly</button><button type="button" data-period="year" aria-pressed="false">Yearly <b>save 33%</b></button></div>
-    <label class="once"><input type="checkbox" id="payOnce"> <span><b>Prefer no auto-renew?</b> Tick to pay once for 1 month or 1 year. You won't be charged again.</span></label>
-    <div class="price">$<span id="proPrice">5</span> <small id="proUnit">USD / month</small></div>
+    <div class="period" role="group" aria-label="Billing period"><button type="button" data-period="month" aria-pressed="true">Monthly</button><button type="button" data-period="year" aria-pressed="false">Yearly <b id="proSaveTag">save 33%</b></button></div>
+    <label class="once" id="payOnceRow"><input type="checkbox" id="payOnce"> <span><b>Prefer no auto-renew?</b> Tick to pay once for 1 month or 1 year. You won't be charged again.</span></label>
+    <div class="price"><span id="proCur">$</span><span id="proPrice">5</span> <small id="proUnit">USD / month</small></div>
     <p class="fine" id="proSave" hidden></p>
     <p class="why" id="proWhy" hidden></p>
     <ul>
       <li>No word limit: check whole essays at once (free plan: 200 words)</li>
       <li>Unlimited humanizing (free plan: 2 a day) and the Citation Generator</li>
-      <li>Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
+      <li id="proCancel">Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
     </ul>
-    <div id="proBody"><div id="inr" hidden></div><div id="ppbtn"></div><div id="ppOnce" hidden></div><div id="applepay" hidden></div></div>
-    <p class="fine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.<span id="inrLink" hidden> <b>In India?</b> <a href="#" id="inrShow">Pay in rupees with UPI</a>.</span></p>
+    <div id="proBody"><div id="inr" hidden></div><div id="usdPay"><div id="ppbtn"></div><div id="ppOnce" hidden></div><div id="applepay" hidden></div></div></div>
+    <p class="fine" id="usdLink" hidden><a href="#" id="usdShow">Paying from outside India? Pay in USD with PayPal or a card</a></p>
+    <p class="fine" id="proFine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.<span id="inrLink" hidden> <b>In India?</b> <a href="#" id="inrShow">Pay in rupees with UPI</a>.</span></p>
     <button class="ghost" id="proClose" type="button">Not now</button>
   </div>
 </div>
@@ -997,6 +998,8 @@ async function openPro(why){
     return;
   }
   setupInr(c);
+  $("usdLink").hidden = !rupees();
+  if (rupees()) return;   // students in India see rupees only; PayPal loads if they choose USD
   if (bill.ppLoaded || !c.paypalClientId || !c.planId) return;
   try {
     await loadScript(`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(c.paypalClientId)}&vault=true&intent=subscription&currency=USD&enable-funding=card,venmo`);
@@ -1021,7 +1024,7 @@ async function openPro(why){
   } catch { $("proBody").append(el("p", null, "PayPal couldn't load. Turn off any ad blocker and refresh the page.")); }
 }
 function showPeriod(){
-  const c = bill.cfg || {}; if (!c.yearlyPlanId) bill.period = "month";
+  const c = bill.cfg || {}, inr = rupees(); if (!c.yearlyPlanId && !inr) bill.period = "month";
   const yr = bill.period === "year", m = Number(c.price || 5), y = Number(c.yearlyPrice || 39.99);
   document.querySelectorAll("#pro .period button").forEach(b => b.setAttribute("aria-pressed", b.dataset.period === bill.period));
   document.querySelector("#pro .period").hidden = !c.yearlyPlanId;
@@ -1034,6 +1037,20 @@ function showPeriod(){
   if (once) renderOnce();
   $("proUnit").textContent = once ? (yr ? "USD for 1 year" : "USD for 1 month") : (yr ? "USD / year" : "USD / month");
   $("proSave").hidden = !yr; $("proSave").textContent = `That's $${(y / 12).toFixed(2)} a month, ${Math.round((1 - y / (m * 12)) * 100)}% less than paying monthly.`;
+  $("proSaveTag").textContent = `save ${Math.round((1 - y / (m * 12)) * 100)}%`;
+  // India: rupee prices only. Rupee payments never renew, so the auto-renew and PayPal lines don't apply.
+  $("proCur").textContent = inr ? "₹" : "$";
+  $("payOnceRow").hidden = inr; $("proFine").hidden = inr;
+  if ($("usdPay")) $("usdPay").hidden = inr;
+  $("proCancel").textContent = inr ? "One-time payment: it never renews, so there's nothing to cancel." : "Cancel any time in PayPal. You keep access until the end of the period you paid for.";
+  if (inr){
+    const im = Number(c.inrPrice || 199), iy = Number(c.inrYearlyPrice || 1499), pct = Math.round((1 - iy / (im * 12)) * 100);
+    document.querySelector("#pro .period").hidden = false;
+    $("proSaveTag").textContent = `save ${pct}%`;
+    $("proPrice").textContent = (yr ? iy : im).toLocaleString("en-IN");
+    $("proUnit").textContent = yr ? "for 1 year" : "for 1 month";
+    $("proSave").textContent = `That's about ₹${Math.round(iy / 12)} a month, ${pct}% less than paying monthly.`;
+  }
 }
 document.querySelectorAll("#pro .period button").forEach(b => b.onclick = () => { bill.period = b.dataset.period; showPeriod(); });
 // Apple Pay (Apple devices only). PayPal supports Apple Pay for one-time payments, so it buys a
@@ -1113,14 +1130,15 @@ function renderOnce(){
 // India: pay in rupees through Razorpay (UPI, Google Pay, PhonePe, Paytm, RuPay and Indian cards).
 // A one-time payment for 1 month or 1 year of Pro that never renews. Shown first for students in India.
 const inIndia = () => { try { return /^Asia\/(Kolkata|Calcutta)$/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) || /-IN$/i.test(navigator.language || ""); } catch { return false; } };
+// Rupee mode: the whole Pro box shows ₹ prices and Razorpay only (PayPal is one tap away via "Pay in USD").
+const rupees = () => !!(bill.cfg && bill.cfg.razorpayKeyId) && !bill.usdOpen && (bill.inrOpen || inIndia());
 function setupInr(c){
   const box = $("inr"), link = $("inrLink");
   if (!c.razorpayKeyId || !box){ if (link) link.hidden = true; return; }
-  const india = inIndia();
-  link.hidden = india;
+  link.hidden = rupees();
   if (!bill.inrBuilt){
     bill.inrBuilt = true;
-    box.innerHTML = '<h3>🇮🇳 Pay in rupees</h3><p class="fine" style="margin:0">UPI, Google Pay, PhonePe, Paytm, RuPay or any Indian card.</p><div class="upi"><span>UPI</span><span>Google Pay</span><span>PhonePe</span><span>Paytm</span><span>Cards</span></div><button class="primary" type="button" id="inrBtn"></button><p class="fine" id="inrNote" style="margin:6px 0 0"></p><p class="or">or pay in USD below</p>';
+    box.innerHTML = '<h3>🇮🇳 Pay in rupees</h3><p class="fine" style="margin:0">UPI, Google Pay, PhonePe, Paytm, RuPay or any Indian card.</p><div class="upi"><span>UPI</span><span>Google Pay</span><span>PhonePe</span><span>Paytm</span><span>Cards</span></div><button class="primary" type="button" id="inrBtn"></button><p class="fine" id="inrNote" style="margin:6px 0 0"></p>';
     const amount = () => bill.period === "year" ? Number(c.inrYearlyPrice || 1499) : Number(c.inrPrice || 199);
     bill.inrNote = () => { const b = $("inrBtn"), n = $("inrNote"); if (!b) return; const yr = bill.period === "year";
       b.textContent = `Pay ₹${amount().toLocaleString("en-IN")} for 1 ${yr ? "year" : "month"}`;
@@ -1128,7 +1146,7 @@ function setupInr(c){
     bill.inrNote();
     $("inrBtn").onclick = payInr;
   }
-  box.hidden = !india && !bill.inrOpen;
+  box.hidden = !rupees();
 }
 async function payInr(){
   const btn = $("inrBtn"); btn.disabled = true;
@@ -1158,7 +1176,8 @@ async function payInr(){
     rz.open();
   } catch (e) { btn.disabled = false; setStatus("UPI checkout couldn't open. Please try again in a moment.", true); }
 }
-$("inrShow").onclick = e => { e.preventDefault(); bill.inrOpen = true; $("inr").hidden = false; $("inrLink").hidden = true; $("inr").scrollIntoView({ block: "nearest" }); };
+$("inrShow").onclick = async e => { e.preventDefault(); bill.inrOpen = true; bill.usdOpen = false; await openPro(); $("inr").scrollIntoView({ block: "nearest" }); };
+$("usdShow").onclick = e => { e.preventDefault(); bill.usdOpen = true; bill.inrOpen = false; openPro(); };
 $("payOnce").onchange = showPeriod;
 $("proClose").onclick = () => { $("pro").hidden = true; };
 $("planPill").onclick = () => openPro();
