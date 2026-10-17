@@ -181,6 +181,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 .says-grid .st{color:#f2b01e;letter-spacing:1px}.says-grid blockquote{margin:6px 0 8px;color:#2b3550}.says-grid figcaption{font-size:.82rem;color:var(--muted)}
 .says .avg{color:var(--muted);font-size:.9rem;margin:-4px 0 10px}
 #inr{border:1px solid #f0d78a;background:#fffaf0;border-radius:12px;padding:12px;margin:0 0 12px;text-align:left}#inr h3{margin:0 0 4px;font-size:1rem}#inr .upi{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}#inr .upi span{font-size:.75rem;border:1px solid var(--line,#ddd);background:#fff;border-radius:99px;padding:2px 8px}#inr button{width:100%}#inr .or{text-align:center;font-size:.8rem;color:var(--muted);margin:10px 0 0}
+.pro-box .country{display:flex;align-items:center;gap:8px;font-size:.86rem;color:var(--muted);margin:0 0 12px}.pro-box .country select{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:.88rem;background:var(--soft);color:var(--ink);cursor:pointer}
 .pro-box .once{display:flex;gap:8px;align-items:flex-start;font-size:.86rem;color:var(--muted);margin:0 0 8px;cursor:pointer}.pro-box .once input{margin-top:3px}.pro-box .once b{color:var(--ink)}
 .pro-box .why{background:#fff4e5;border-radius:8px;padding:8px 10px;font-size:.88rem;margin:8px 0 0}
 .gate #gbtn{display:flex;justify-content:center;min-height:44px;margin-top:14px}
@@ -316,6 +317,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 <div class="gate" id="pro" hidden role="dialog" aria-modal="true" aria-labelledby="proH">
   <div class="box pro-box">
     <h2 id="proH">EssayWiz Pro</h2>
+    <label class="country" id="countryRow" hidden>Paying from <select id="country" aria-label="Country you are paying from"><option value="IN">🇮🇳 India: ₹ rupees (UPI, Indian cards)</option><option value="XX">🌍 Another country: $ USD (PayPal, cards)</option></select></label>
     <div class="period" role="group" aria-label="Billing period"><button type="button" data-period="month" aria-pressed="true">Monthly</button><button type="button" data-period="year" aria-pressed="false">Yearly <b id="proSaveTag">save 33%</b></button></div>
     <label class="once" id="payOnceRow"><input type="checkbox" id="payOnce"> <span><b>Prefer no auto-renew?</b> Tick to pay once for 1 month or 1 year. You won't be charged again.</span></label>
     <div class="price"><span id="proCur">$</span><span id="proPrice">5</span> <small id="proUnit">USD / month</small></div>
@@ -327,8 +329,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
       <li id="proCancel">Cancel any time in PayPal. You keep access until the end of the period you paid for.</li>
     </ul>
     <div id="proBody"><div id="inr" hidden></div><div id="usdPay"><div id="ppbtn"></div><div id="ppOnce" hidden></div><div id="applepay" hidden></div></div></div>
-    <p class="fine" id="usdLink" hidden><a href="#" id="usdShow">Paying from outside India? Pay in USD with PayPal or a card</a></p>
-    <p class="fine" id="proFine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.<span id="inrLink" hidden> <b>In India?</b> <a href="#" id="inrShow">Pay in rupees with UPI</a>.</span></p>
+    <p class="fine" id="proFine"><b>Pay any way you like:</b> PayPal, any debit or credit card (Visa, Mastercard, American Express, Discover), or Apple Pay on Apple devices. Payments are processed securely by PayPal, so we never see your card details.</p>
     <button class="ghost" id="proClose" type="button">Not now</button>
   </div>
 </div>
@@ -998,7 +999,7 @@ async function openPro(why){
     return;
   }
   setupInr(c);
-  $("usdLink").hidden = !rupees();
+  $("countryRow").hidden = !c.razorpayKeyId; $("country").value = rupees() ? "IN" : "XX";
   if (rupees()) return;   // students in India see rupees only; PayPal loads if they choose USD
   if (bill.ppLoaded || !c.paypalClientId || !c.planId) return;
   try {
@@ -1131,11 +1132,12 @@ function renderOnce(){
 // A one-time payment for 1 month or 1 year of Pro that never renews. Shown first for students in India.
 const inIndia = () => { try { return /^Asia\/(Kolkata|Calcutta)$/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) || /-IN$/i.test(navigator.language || ""); } catch { return false; } };
 // Rupee mode: the whole Pro box shows ₹ prices and Razorpay only (PayPal is one tap away via "Pay in USD").
-const rupees = () => !!(bill.cfg && bill.cfg.razorpayKeyId) && !bill.usdOpen && (bill.inrOpen || inIndia());
+// The country comes from the "Paying from" selector (remembered on this device), else from the timezone or language.
+const country = () => { if (bill.country) return bill.country; try { const v = localStorage.getItem("ew_country"); if (v === "IN" || v === "XX") return v; } catch {} return inIndia() ? "IN" : "XX"; };
+const rupees = () => !!(bill.cfg && bill.cfg.razorpayKeyId) && country() === "IN";
 function setupInr(c){
-  const box = $("inr"), link = $("inrLink");
-  if (!c.razorpayKeyId || !box){ if (link) link.hidden = true; return; }
-  link.hidden = rupees();
+  const box = $("inr");
+  if (!c.razorpayKeyId || !box) return;
   if (!bill.inrBuilt){
     bill.inrBuilt = true;
     box.innerHTML = '<h3>🇮🇳 Pay in rupees</h3><p class="fine" style="margin:0">UPI, Google Pay, PhonePe, Paytm, RuPay or any Indian card.</p><div class="upi"><span>UPI</span><span>Google Pay</span><span>PhonePe</span><span>Paytm</span><span>Cards</span></div><button class="primary" type="button" id="inrBtn"></button><p class="fine" id="inrNote" style="margin:6px 0 0"></p>';
@@ -1176,8 +1178,7 @@ async function payInr(){
     rz.open();
   } catch (e) { btn.disabled = false; setStatus("UPI checkout couldn't open. Please try again in a moment.", true); }
 }
-$("inrShow").onclick = async e => { e.preventDefault(); bill.inrOpen = true; bill.usdOpen = false; await openPro(); $("inr").scrollIntoView({ block: "nearest" }); };
-$("usdShow").onclick = e => { e.preventDefault(); bill.usdOpen = true; bill.inrOpen = false; openPro(); };
+$("country").onchange = () => { bill.country = $("country").value; try { localStorage.setItem("ew_country", bill.country); } catch {} openPro(); };
 $("payOnce").onchange = showPeriod;
 $("proClose").onclick = () => { $("pro").hidden = true; };
 $("planPill").onclick = () => openPro();
