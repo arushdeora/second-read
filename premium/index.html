@@ -127,13 +127,13 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
   </ul>
 </section>
 
-<div class="bill" role="group" aria-label="Billing period"><span id="lblM" class="on">Monthly</span><button type="button" id="yearly" role="switch" aria-checked="false" aria-label="Pay yearly"><i></i></button><span id="lblY">Yearly</span><span class="save">Save 33%</span></div>
+<div class="bill" role="group" aria-label="Billing period"><span id="lblM" class="on">Monthly</span><button type="button" id="yearly" role="switch" aria-checked="false" aria-label="Pay yearly"><i></i></button><span id="lblY">Yearly</span><span class="save" data-inr="Save 37%">Save 33%</span></div>
 
 <section class="plans" aria-label="Plans">
   <div class="plan">
     <h3>Free</h3>
     <p class="sub">Try the tools on shorter pieces of writing.</p>
-    <div class="price">$0 <small>USD</small></div>
+    <div class="price" data-inr="₹0">$0 <small>USD</small></div>
     <div class="per">Free forever</div>
     <a class="btn" id="freeBtn" href="/">Start free</a>
     <h4>What you get:</h4>
@@ -152,7 +152,7 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
     <div class="badge"><svg class="crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg> Most popular</div>
     <h3><svg class="crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg> Pro</h3>
     <p class="sub">For full essays, reports and long assignments.</p>
-    <div class="price">$<span id="price">5</span> <small>USD</small></div>
+    <div class="price"><span id="cur">$</span><span id="price">5</span> <small id="unit">USD</small></div>
     <div class="per" id="per">per month · cancel any time</div>
     <a class="btn gold" id="proBtn" href="/#upgrade">Upgrade to Pro</a>
     <h4>Everything in Free, plus:</h4>
@@ -168,7 +168,7 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
     </ul>
   </div>
 </section>
-<p class="fine">Pay with PayPal, any debit or credit card, or Apple Pay on iPhone, iPad and Mac. In India you can pay in rupees with UPI, Google Pay, PhonePe, Paytm or RuPay. Payments are handled by PayPal, so we never see your card details. Cancel in your PayPal account and keep Pro until the end of the month or year you paid for, or choose <b>Pay once</b> at checkout so it never renews.</p>
+<p class="fine" data-inr="Pay in rupees with UPI, Google Pay, PhonePe, Paytm, RuPay, Visa, Mastercard or net banking. Payments are handled securely by Razorpay, so we never see your card or bank details. It's a one-time payment for 1 month or 1 year that never renews, so there's nothing to cancel.">Pay with PayPal, any debit or credit card, or Apple Pay on iPhone, iPad and Mac. Payments are handled by PayPal, so we never see your card details. Cancel in your PayPal account and keep Pro until the end of the month or year you paid for, or choose <b>Pay once</b> at checkout so it never renews.</p>
 
 <section class="why">
   <h2>Why students go Pro</h2>
@@ -223,17 +223,17 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
 <section class="faq">
   <h2>Questions</h2>
   <details><summary>What's the difference between Free and Pro?</summary><p>Free checks up to 200 words at a time, with 2 humanizes a day and no Citation Generator. Pro removes the word limit and unlocks unlimited humanizing and citations.</p></details>
-  <details><summary>Can I pay for just one month?</summary><p>Yes. In the payment box, tick <b>Pay once, no auto-renew</b>. You pay $5 for one month (or $39.99 for one year) with PayPal or a card, and you are never charged again. Pro simply ends when the time is up.</p></details>
-  <details><summary>Is there a yearly plan?</summary><p>Yes. Pro costs $39.99 USD a year, which works out to $3.33 a month, 33% less than paying monthly. Turn on Yearly above the plans before you click Upgrade.</p></details>
-  <details><summary>How do I pay?</summary><p>With PayPal or any debit or credit card (Visa, Mastercard, American Express, Discover). Click Upgrade, sign in with Google, and choose how to pay in the PayPal box. On Apple devices you can also use Apple Pay, which buys 1 month or 1 year of Pro as a one-time payment that does not renew.</p></details>
-  <details><summary>Can I pay with UPI in India?</summary><p>Yes. Students in India can pay in rupees with UPI, Google Pay, PhonePe, Paytm, RuPay or any Indian card: ₹199 for 1 month or ₹1,499 for 1 year. It's a one-time payment that never renews. Click Upgrade and choose <b>Pay in rupees</b>.</p></details>
-  <details><summary>How do I cancel?</summary><p>Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel EssayWiz Pro. You keep Pro until the end of the month or year you already paid for.</p></details>
+  <details><summary>Can I pay for just one month?</summary><p data-inr="Yes. Every rupee payment is one-time: you pay ₹199 for 1 month (or ₹1,499 for 1 year) with UPI or an Indian card, and you are never charged again. Pro simply ends when the time is up.">Yes. In the payment box, tick <b>Pay once, no auto-renew</b>. You pay $5 for one month (or $39.99 for one year) with PayPal or a card, and you are never charged again. Pro simply ends when the time is up.</p></details>
+  <details><summary>Is there a yearly plan?</summary><p data-inr="Yes. Pro costs ₹1,499 a year, which works out to about ₹125 a month, 37% less than paying monthly. Turn on Yearly above the plans before you click Upgrade.">Yes. Pro costs $39.99 USD a year, which works out to $3.33 a month, 33% less than paying monthly. Turn on Yearly above the plans before you click Upgrade.</p></details>
+  <details><summary>How do I pay?</summary><p data-inr="With UPI (Google Pay, PhonePe, Paytm or any UPI app), RuPay, Visa or Mastercard cards, or net banking. Click Upgrade, sign in with Google, and pay in the Razorpay box.">With PayPal or any debit or credit card (Visa, Mastercard, American Express, Discover). Click Upgrade, sign in with Google, and choose how to pay in the PayPal box. On Apple devices you can also use Apple Pay, which buys 1 month or 1 year of Pro as a one-time payment that does not renew.</p></details>
+  <details data-only="IN"><summary>Can I pay with UPI?</summary><p>Yes. Pay in rupees with UPI, Google Pay, PhonePe, Paytm, RuPay or any Indian card: ₹199 for 1 month or ₹1,499 for 1 year. It's a one-time payment that never renews. Click Upgrade to pay.</p></details>
+  <details><summary>How do I cancel?</summary><p data-inr="Rupee payments never renew, so there's nothing to cancel. Pro simply ends after the month or year you paid for.">Open your PayPal account, go to Settings, then Payments and Manage automatic payments, and cancel EssayWiz Pro. You keep Pro until the end of the month or year you already paid for.</p></details>
   <details><summary>Is my writing saved?</summary><p>No, unless you tick the box to help train EssayWiz. See the <a href="/privacy.html">privacy policy</a>.</p></details>
 </section>
 
 <section class="final">
   <h2>Ready to check your whole essay?</h2>
-  <p>$5 USD a month, or $39.99 a year. Cancel any time.</p>
+  <p data-inr="₹199 for 1 month, or ₹1,499 for 1 year. One-time payment, no auto-renew.">$5 USD a month, or $39.99 a year. Cancel any time.</p>
   <a class="btn gold" href="/#upgrade"><svg class="crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg> Upgrade to Pro</a>
 </section>
 
@@ -242,15 +242,20 @@ footer{margin-top:48px;border-top:1px solid var(--line);padding:16px 0 30px;colo
 
 <script>
 // Monthly / yearly switch: updates the Pro price and every Upgrade link.
-let monthly = 5, yearly = 39.99;
+let monthly = 5, yearly = 39.99, inrM = 199, inrY = 1499;
 function setPeriod(yr){
   document.getElementById("yearly").setAttribute("aria-checked", yr);
   document.getElementById("lblM").className = yr ? "" : "on"; document.getElementById("lblY").className = yr ? "on" : "";
-  document.getElementById("price").textContent = yr ? yearly.toFixed(2) : String(monthly);
-  document.getElementById("per").textContent = yr ? `per year · just $${(yearly / 12).toFixed(2)} a month` : "per month · cancel any time";
+  // India sees rupees only (one-time Razorpay passes); everyone else US dollars. See /geo.js.
+  const inr = window.ewIndia === true;
+  document.getElementById("cur").textContent = inr ? "₹" : "$"; document.getElementById("unit").textContent = inr ? "" : "USD";
+  document.getElementById("price").textContent = inr ? (yr ? inrY : inrM).toLocaleString("en-IN") : yr ? yearly.toFixed(2) : String(monthly);
+  document.getElementById("per").textContent = inr ? (yr ? `for 1 year · about ₹${Math.round(inrY / 12)} a month` : "for 1 month · one-time, no auto-renew")
+    : yr ? `per year · just $${(yearly / 12).toFixed(2)} a month` : "per month · cancel any time";
   document.querySelectorAll('a[href^="/#upgrade"]').forEach(a => a.href = yr ? "/#upgrade-yearly" : "/#upgrade");
 }
 document.getElementById("yearly").onclick = e => setPeriod(e.currentTarget.getAttribute("aria-checked") !== "true");
+document.addEventListener("ew:country", () => setPeriod(document.getElementById("yearly").getAttribute("aria-checked") === "true"));
 /* ---------- What students say: reviews the owner approved ---------- */
 (async function showReviews(){
   const host = document.getElementById("says"); if (!host) return;
@@ -282,6 +287,7 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
     const r = await fetch("/api/billing", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok, ...(sid ? { "x-sr-subscription": sid } : {}) }, body: JSON.stringify({ action: "status" }) });
     if (!r.ok) return; const s = await r.json(); if (!s.enabled) return;
     if (s.price) monthly = Number(s.price); if (s.yearlyPrice) yearly = Number(s.yearlyPrice);
+    if (s.inrPrice) inrM = Number(s.inrPrice); if (s.inrYearlyPrice) inrY = Number(s.inrYearlyPrice);
     setPeriod(document.getElementById("yearly").getAttribute("aria-checked") === "true");
     const pro = document.getElementById("proBtn"), free = document.getElementById("freeBtn");
     if (s.owner){ pro.textContent = "Preview checkout (owner)"; }
@@ -290,5 +296,6 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
   } catch {}
 })();
 </script>
+<script src="/geo.js" defer></script>
 </body>
 </html>
