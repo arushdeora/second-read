@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#1d3a6e">
+<title>EssayWiz Student Survey</title>
+<meta name="description" content="A 3-minute survey for college students about essays, plagiarism, AI detectors and writing tools. Help us build a better EssayWiz.">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://essaywiz.app/survey/">
+<meta property="og:title" content="3-minute student survey – EssayWiz">
+<meta property="og:description" content="How do you check your essays before submitting? Tell us in 3 minutes.">
+<meta property="og:image" content="https://essaywiz.app/icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column of question cards, grouped in 5 numbered parts, sticky progress bar on top. */
+:root{--bg:#f3f5f9;--paper:#fff;--ink:#15233f;--muted:#5b6579;--line:#dde2ea;--soft:#f7f9fc;--accent:#1d3a6e;--accent2:#2f6fd6;--good:#2b7a57;--bad:#b3362f;--pick:#e8eefb;
+  --display:"Source Serif 4",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body)}
+a{color:var(--accent2)}
+.top{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line);padding:env(safe-area-inset-top) max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
+.top-in{max-width:680px;margin:0 auto;height:54px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font:700 1.3rem var(--display);color:var(--ink);text-decoration:none}.brand span{color:var(--good);font-style:italic}
+.prog{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{height:4px;background:var(--line)}.bar i{display:block;height:100%;width:0;background:var(--good);transition:width .25s}
+main{max-width:680px;margin:0 auto;padding:22px max(16px,env(safe-area-inset-right)) calc(56px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+h1{font:700 clamp(1.7rem,5vw,2.3rem)/1.15 var(--display);margin:6px 0 10px;text-wrap:balance}
+.lead{color:var(--muted);margin:0 0 6px;font-size:1.05rem}
+.meta{display:flex;flex-wrap:wrap;gap:8px 16px;color:var(--muted);font-size:.9rem;margin:12px 0 26px}
+.meta b{color:var(--ink)}
+.part{margin:30px 0 12px;display:flex;align-items:baseline;gap:10px}
+.part span{font:700 .78rem var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--good)}
+.part h2{font:700 1.25rem var(--display);margin:0}
+.q{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;margin:0 0 12px}
+.q.err{border-color:var(--bad);box-shadow:0 0 0 3px #f6dcda}
+.q legend,.q .lbl{font-weight:600;font-size:1.02rem;padding:0;margin:0 0 8px;display:block}
+.q legend{float:left;width:100%}.q>legend~*{clear:both}
+.q .hint{color:var(--muted);font-size:.88rem;margin:0 0 12px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.opt span{display:inline-flex;align-items:center;min-height:42px;padding:8px 14px;border:1px solid var(--line);border-radius:10px;background:var(--soft);cursor:pointer;font-weight:500;transition:background .12s,border-color .12s}
+.opt input:checked+span{background:var(--pick);border-color:var(--accent2);color:var(--accent);font-weight:600}
+.opt input:focus-visible+span{outline:2px solid var(--accent2);outline-offset:2px}
+.opt input:disabled+span{opacity:.45;cursor:not-allowed}
+.rate{display:grid;gap:10px}
+.rate-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.rate-row:first-child{border-top:0}
+.rate-row b{font-weight:600}.rate-row small{display:block;color:var(--muted);font-size:.84rem;font-weight:400}
+.dots{display:flex;gap:6px}
+.dots .opt span{width:40px;min-height:40px;padding:0;justify-content:center;font-variant-numeric:tabular-nums}
+.scale-note{display:flex;justify-content:flex-end;gap:6px;color:var(--muted);font-size:.8rem;margin-bottom:2px}
+.nps{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
+.nps .opt span{width:100%;min-height:42px;padding:0;justify-content:center;font-variant-numeric:tabular-nums}
+.ends{display:flex;justify-content:space-between;color:var(--muted);font-size:.82rem;margin-top:6px}
+input[type=text],input[type=email],textarea{width:100%;font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{min-height:92px;resize:vertical}
+input:focus,textarea:focus{outline:2px solid var(--accent2);outline-offset:1px;background:#fff}
+.other{margin-top:10px}
+.price-ctx{background:#fff4dc;border:1px solid #f2d394;border-radius:10px;padding:10px 12px;font-size:.93rem;margin:0 0 12px}
+.submit{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+button.go{font:700 1.05rem var(--body);background:var(--accent);color:#fff;border:0;border-radius:12px;min-height:52px;padding:0 22px;cursor:pointer}
+button.go:hover{background:#163059}button.go:disabled{opacity:.6;cursor:wait}
+.small{color:var(--muted);font-size:.86rem;margin:0}
+.formerr{color:var(--bad);font-weight:600;margin:0}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.thanks{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:28px 22px;text-align:center;margin-top:30px}
+.thanks h2{font:700 1.6rem var(--display);margin:0 0 8px}
+.thanks .tick{width:56px;height:56px;border-radius:50%;background:#e6f4ec;display:grid;place-items:center;margin:0 auto 14px}
+.thanks svg{width:28px;height:28px;stroke:var(--good);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.share{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:18px}
+.share a,.share button{font:600 .95rem var(--body);border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:99px;padding:9px 16px;text-decoration:none;cursor:pointer}
+.share .wa{background:#25d366;border-color:#25d366;color:#fff}
+.share .try{background:var(--accent);border-color:var(--accent);color:#fff}
+footer{color:var(--muted);font-size:.84rem;text-align:center;margin-top:34px}
+@media(max-width:480px){.rate-row{grid-template-columns:1fr}.dots .opt span{width:44px}.nps{gap:3px}.nps .opt span{font-size:.9rem}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in"><a class="brand" href="/">Essay<span>Wiz</span></a><span class="prog" id="prog">0 of 18 answered</span></div></header>
+<div class="bar"><i id="barFill"></i></div>
+<main>
+<form id="f" novalidate>
+  <div id="intro">
+    <h1>How do you check your essays before you submit?</h1>
+    <p class="lead">We're building EssayWiz, a writing checker for college students. Your answers decide what we build next and what it costs.</p>
+    <div class="meta"><span><b>3 minutes</b> · 18 questions</span><span><b>Anonymous</b> · no sign-in</span><span>Questions marked * are required</span></div>
+  </div>
+
+  <div id="questions">
+  <div class="part"><span>Part 1 of 5</span><h2>About you</h2></div>
+
+  <fieldset class="q" data-req="country"><legend>Where do you study? *</legend>
+    <div class="opts" data-name="country" data-type="radio" data-opts="india:India|canada:Canada|usa:USA|other:Other"></div>
+    <input class="other" type="text" id="countryOther" maxlength="60" placeholder="Which country?" hidden>
+  </fieldset>
+
+  <fieldset class="q" data-req="level"><legend>What year are you in? *</legend>
+    <div class="opts" data-name="level" data-type="radio" data-opts="ug1:1st year (Bachelor's)|ug2:2nd or 3rd year|ug_final:Final year|pg:Master's / PhD|other:Other"></div>
+  </fieldset>
+
+  <fieldset class="q" data-req="field"><legend>What do you study? *</legend>
+    <div class="opts" data-name="field" data-type="radio" data-opts="arts:Arts / Humanities|commerce:Commerce / Business|science:Science|engineering:Engineering / CS|health:Medicine / Health|law:Law|other:Other"></div>
+  </fieldset>
+
+  <fieldset class="q" data-req="freq"><legend>How often do you write essays or assignments? *</legend>
+    <div class="opts" data-name="freq" data-type="radio" data-opts="weekly:Every week|monthly_few:A few times a month|monthly:About once a month|rarely:Rarely"></div>
+  </fieldset>
+
+  <div class="part"><span>Part 2 of 5</span><h2>How you check your work now</h2></div>
+
+  <fieldset class="q" data-req="tools"><legend>Which of these do you use for essays? *</legend><p class="hint">Pick all that apply.</p>
+    <div class="opts" data-name="tools" data-type="checkbox" data-opts="grammarly:Grammarly|quillbot:QuillBot|chatgpt:ChatGPT or another AI chatbot|turnitin:Turnitin (through college)|scribbr:Scribbr|free_checkers:Free online checkers|friend:A friend or tutor reads it|none:Nothing"></div>
+  </fieldset>
+
+  <fieldset class="q" data-req="worries"><legend>What worries you most before you submit? *</legend><p class="hint">Pick up to 2.</p>
+    <div class="opts" data-name="worries" data-type="checkbox" data-max="2" data-opts="plagiarism:Plagiarism by mistake|ai_flag:Being flagged as AI when I wrote it myself|grammar:Grammar mistakes|citations:Getting citations right|clarity:Clarity and structure|word_count:Hitting the word count"></div>
+  </fieldset>
+
+  <fieldset class="q"><legend>Does your college check assignments with an AI detector?</legend>
+    <div class="opts" data-name="detector" data-type="radio" data-opts="yes:Yes|no:No|unsure:Not sure"></div>
+  </fieldset>
+
+  <fieldset class="q"><legend>Have you or a friend been flagged as AI for work you wrote yourself?</legend>
+    <div class="opts" data-name="flagged" data-type="radio" data-opts="me:Yes, me|friend:Yes, a friend|no:No|unsure:Not sure"></div>
+  </fieldset>
+
+  <div class="part"><span>Part 3 of 5</span><h2>What matters to you</h2></div>
+
+  <fieldset class="q" data-req="features"><legend>How useful would each of these be? *</legend><p class="hint">1 = not useful, 5 = I'd use it on every essay.</p>
+    <div class="scale-note"><span>Not useful</span><span>→</span><span>Very useful</span></div>
+    <div class="rate" id="rate"></div>
+  </fieldset>
+
+  <div class="part"><span>Part 4 of 5</span><h2>Price</h2></div>
+
+  <fieldset class="q"><legend>Do you pay for any writing tool right now?</legend>
+    <div class="opts" data-name="pays" data-type="radio" data-opts="yes:Yes|no:No"></div>
+    <input class="other" type="text" id="paysWhat" maxlength="120" placeholder="Which one, and how much?" hidden>
+  </fieldset>
+
+  <fieldset class="q" data-req="goodPrice"><legend>What monthly price for a full writing checker would feel like a good deal? *</legend><p class="hint">Whole essays, no word limit: plagiarism, AI check, grammar and citations.</p>
+    <div class="opts" data-name="goodPrice" data-type="radio" id="goodPrice"></div>
+  </fieldset>
+
+  <fieldset class="q"><legend id="feelQ">EssayWiz Pro costs ₹199 a month. How does that feel?</legend>
+    <p class="price-ctx" id="priceCtx">₹199/month or ₹1,499/year. Pay with UPI, no auto-renew.</p>
+    <div class="opts" data-name="priceFeel" data-type="radio" data-opts="cheap:Cheap|fair:Fair|high:A bit high|too_high:Too expensive"></div>
+  </fieldset>
+
+  <fieldset class="q"><legend>Which plan would you pick?</legend>
+    <div class="opts" data-name="plan" data-type="radio" data-opts="monthly:Monthly|semester:One semester (4 months)|yearly:Yearly (cheaper per month)|per_essay:Pay per essay"></div>
+  </fieldset>
+
+  <fieldset class="q"><legend>How would you like to pay?</legend><p class="hint">Pick all that apply.</p>
+    <div class="opts" data-name="pay" data-type="checkbox" id="payOpts"></div>
+  </fieldset>
+
+  <div class="part"><span>Part 5 of 5</span><h2>EssayWiz</h2></div>
+
+  <fieldset class="q" data-req="used"><legend>Have you used EssayWiz before? *</legend>
+    <div class="opts" data-name="used" data-type="radio" data-opts="yes:Yes|no:No"></div>
+  </fieldset>
+
+  <fieldset class="q" id="npsQ" hidden><legend>How likely are you to recommend EssayWiz to a friend?</legend>
+    <div class="opts nps" data-name="nps" data-type="radio" data-opts="0:0|1:1|2:2|3:3|4:4|5:5|6:6|7:7|8:8|9:9|10:10"></div>
+    <div class="ends"><span>Not likely</span><span>Very likely</span></div>
+  </fieldset>
+
+  <div class="q" id="improveQ" hidden><label class="lbl" for="improve">What's the one thing we should improve?</label>
+    <textarea id="improve" maxlength="600" placeholder="Anything that annoyed you, was missing, or didn't work"></textarea></div>
+
+  <div class="q" id="tryQ" hidden><label class="lbl" for="tryIt">What would make you try a tool like this?</label>
+    <textarea id="tryIt" maxlength="600" placeholder="For example: a free plan, a friend's recommendation, my college allowing it…"></textarea></div>
+
+  <div class="q"><label class="lbl" for="more">Anything else you'd like to tell us?</label>
+    <textarea id="more" maxlength="1000" placeholder="Optional"></textarea></div>
+
+  <div class="q"><label class="lbl" for="email">Can we follow up? Leave your email (optional)</label>
+    <p class="hint">Only if you're happy to answer a few more questions later. We'll use it for nothing else and never share it.</p>
+    <input type="email" id="email" maxlength="120" autocomplete="email" placeholder="you@college.edu"></div>
+
+  <div class="hp" aria-hidden="true"><label for="website">Leave this empty</label><input type="text" id="website" tabindex="-1" autocomplete="off"></div>
+
+  <div class="submit">
+    <p class="formerr" id="formErr" role="alert" hidden></p>
+    <button class="go" type="submit" id="send">Submit my answers</button>
+    <p class="small">Answers are anonymous unless you add your email. See our <a href="/privacy.html">privacy policy</a>.</p>
+  </div>
+  </div>
+</form>
+
+<div class="thanks" id="thanks" hidden>
+  <div class="tick"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+  <h2>Thank you!</h2>
+  <p class="lead">Your answers are saved. Know someone else who writes essays? Send them the survey.</p>
+  <div class="share">
+    <a class="wa" id="wa" href="#" target="_blank" rel="noopener">Share on WhatsApp</a>
+    <button type="button" id="copy">Copy link</button>
+    <a class="try" href="/">Try EssayWiz free</a>
+  </div>
+</div>
+<footer>EssayWiz · Created by Arush Deora</footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const FEATURES = [
+  ["plagiarism", "Plagiarism check", "Compare your essay with websites and published sources"],
+  ["ai", "AI-writing check", "See if any part reads like AI before your college does"],
+  ["grammar", "Grammar and clarity fixes", "Catch mistakes and unclear sentences"],
+  ["citations", "Citation generator", "APA, MLA and Chicago in seconds"],
+  ["proofread", "Proof you wrote it yourself", "A record of your writing process to show a teacher"],
+  ["paraphrase", "Rewrite in my own words", "Help rephrasing sentences that sound off"],
+];
+const PRICES = {
+  inr: "p1:₹99|p2:₹149|p3:₹199|p4:₹299|p5:₹499|none:I wouldn't pay",
+  usd: "p1:$2.99|p2:$4.99|p3:$7.99|p4:$9.99|p5:$14.99|none:I wouldn't pay",
+};
+const PAY = {
+  inr: "upi:UPI (GPay, PhonePe…)|card:Debit / credit card|paytm:Paytm wallet|netbanking:Net banking",
+  usd: "card:Debit / credit card|paypal:PayPal|wallet:Apple Pay / Google Pay",
+};
+
+function buildOpts(box, spec) {
+  const name = box.dataset.name, type = box.dataset.type;
+  const keep = new Set([...box.querySelectorAll("input:checked")].map(i => i.value));
+  box.innerHTML = spec.split("|").map((s, i) => { const [v, t] = s.split(":"); const id = `${name}_${v}`;
+    return `<label class="opt" for="${id}"><input type="${type}" name="${name}" id="${id}" value="${v}"${keep.has(v) ? " checked" : ""}><span>${t}</span></label>`; }).join("");
+}
+document.querySelectorAll("[data-opts]").forEach(b => buildOpts(b, b.dataset.opts));
+$("rate").innerHTML = FEATURES.map(([k, t, d]) => `<div class="rate-row" role="radiogroup" aria-label="${t}"><div><b>${t}</b><small>${d}</small></div><div class="dots">${
+  [1,2,3,4,5].map(n => `<label class="opt" for="f_${k}_${n}"><input type="radio" name="f_${k}" id="f_${k}_${n}" value="${n}"><span>${n}</span></label>`).join("")}</div></div>`).join("");
+
+function region() { const c = val("country"); return c === "india" ? "inr" : c ? "usd" : null; }
+function applyRegion() {
+  const r = region() || "inr";
+  $("goodPrice").dataset.name = "goodPrice"; $("goodPrice").dataset.type = "radio"; buildOpts($("goodPrice"), PRICES[r]);
+  $("payOpts").dataset.name = "pay"; $("payOpts").dataset.type = "checkbox"; buildOpts($("payOpts"), PAY[r]);
+  if (r === "inr") { $("feelQ").textContent = "EssayWiz Pro costs ₹199 a month. How does that feel?"; $("priceCtx").textContent = "₹199/month or ₹1,499/year. Pay with UPI, no auto-renew."; }
+  else { $("feelQ").textContent = "EssayWiz Pro costs $5 USD a month. How does that feel?"; $("priceCtx").textContent = "$5/month or $39.99/year, cancel any time."; }
+}
+
+const val = n => { const i = document.querySelector(`input[name="${n}"]:checked`); return i ? i.value : null; };
+const vals = n => [...document.querySelectorAll(`input[name="${n}"]:checked`)].map(i => i.value);
+
+function collect() {
+  const a = {};
+  ["country","level","field","freq","detector","flagged","pays","goodPrice","priceFeel","plan","used"].forEach(k => { const v = val(k); if (v) a[k] = v; });
+  ["tools","worries","pay"].forEach(k => { const v = vals(k); if (v.length) a[k] = v; });
+  const f = {}; FEATURES.forEach(([k]) => { const v = val("f_" + k); if (v) f[k] = +v; }); if (Object.keys(f).length) a.features = f;
+  if (val("used") === "yes" && val("nps") != null) a.nps = +val("nps");
+  const txt = { countryOther: a.country === "other", paysWhat: a.pays === "yes", improve: a.used === "yes", tryIt: a.used === "no", more: true, email: true };
+  for (const [k, on] of Object.entries(txt)) { const v = $(k).value.trim(); if (on && v) a[k] = v; }
+  return a;
+}
+
+// Progress: 18 countable questions (the follow-ups for EssayWiz users / non-users count as one).
+function answeredCount(a) {
+  let n = 0;
+  ["country","level","field","freq","tools","worries","detector","flagged","pays","goodPrice","priceFeel","plan","pay","used"].forEach(k => { if (a[k]) n++; });
+  if (a.features && Object.keys(a.features).length === FEATURES.length) n++;
+  if (a.used === "yes" ? (a.nps != null || a.improve) : a.tryIt) n++;
+  if (a.more) n++; if (a.email) n++;
+  return Math.min(18, n);
+}
+function refresh() {
+  const c = val("country");
+  $("countryOther").hidden = c !== "other";
+  $("paysWhat").hidden = val("pays") !== "yes";
+  const used = val("used");
+  $("npsQ").hidden = $("improveQ").hidden = used !== "yes";
+  $("tryQ").hidden = used !== "no";
+  const ws = document.querySelectorAll('input[name="worries"]'), picked = vals("worries").length;
+  ws.forEach(i => i.disabled = !i.checked && picked >= 2);
+  const n = answeredCount(collect());
+  $("prog").textContent = `${n} of 18 answered`; $("barFill").style.width = (n / 18 * 100) + "%";
+}
+let lastRegion = null;
+$("f").addEventListener("change", e => {
+  if (e.target.name === "country" && region() !== lastRegion) { lastRegion = region(); applyRegion(); }
+  if (e.target.name === "tools" && e.target.value === "none" && e.target.checked) document.querySelectorAll('input[name="tools"]').forEach(i => { if (i.value !== "none") i.checked = false; });
+  if (e.target.name === "tools" && e.target.value !== "none" && e.target.checked) { const no = $("tools_none"); if (no) no.checked = false; }
+  const q = e.target.closest(".q"); if (q) q.classList.remove("err");
+  refresh();
+});
+$("f").addEventListener("input", refresh);
+applyRegion(); refresh();
+
+function missing(a) {
+  const out = [];
+  document.querySelectorAll("[data-req]").forEach(q => {
+    const k = q.dataset.req;
+    const ok = k === "features" ? a.features && Object.keys(a.features).length === FEATURES.length : !!a[k];
+    q.classList.toggle("err", !ok); if (!ok) out.push(q);
+  });
+  return out;
+}
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const a = collect(), miss = missing(a);
+  if (miss.length) { $("formErr").hidden = false; $("formErr").textContent = `Please answer the ${miss.length} required question${miss.length > 1 ? "s" : ""} marked in red.`; miss[0].scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  $("formErr").hidden = true; $("send").disabled = true; $("send").textContent = "Sending…";
+  try {
+    const r = await fetch("/api/survey", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ answers: a, hp: $("website").value }) });
+    if (r.status === 429) throw new Error("Too many answers from this network right now. Please try again in an hour.");
+    if (!r.ok) throw new Error("Your answers didn't send. Check your connection and press Submit again.");
+    $("f").hidden = true; $("thanks").hidden = false; $("prog").textContent = "Done"; $("barFill").style.width = "100%";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (err) {
+    $("formErr").hidden = false; $("formErr").textContent = err.message || "Your answers didn't send. Press Submit again.";
+    $("send").disabled = false; $("send").textContent = "Submit my answers";
+  }
+});
+
+const shareUrl = "https://essaywiz.app/survey/";
+$("wa").href = "https://wa.me/?text=" + encodeURIComponent("Quick 3-minute survey for college students about essays and AI detectors: " + shareUrl);
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(shareUrl); $("copy").textContent = "Link copied"; }
+  catch { $("copy").textContent = shareUrl; }
+};
+</script>
+</body>
+</html>
