@@ -177,13 +177,11 @@ function render() {
     </div>
     ${loginsCard()}
     ${reviewsCard()}
-    <div id="surveyBox">${survey ? surveyCard() : ""}</div>
     <div class="card"><h2>By tool</h2><div class="tbl">${toolTable()}</div></div>
     <div class="card"><details><summary>Daily numbers (table)</summary><div class="tbl">${dailyTable()}</div></details>
       <p class="note">Claude cost is estimated from the tokens each request used and Anthropic's published prices; your Anthropic Console shows the exact bill. Revenue comes straight from PayPal. Numbers start from when tracking was switched on.</p></div>`;
   document.querySelectorAll("[data-m]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.m === metric); b.onclick = () => { metric = b.dataset.m; render(); }; });
   drawChart();
-  loadSurvey();
   document.querySelectorAll("[data-rv]").forEach(b => b.onclick = async () => {
     b.disabled = true; b.textContent = "Saving…";
     try {
@@ -201,56 +199,6 @@ function loginsCard() {
     <div class="newc"><h3>New users <span>${n(L.new.length)} first visit${L.new.length === 1 ? "" : "s"}</span></h3>${list(L.new)}</div>
     <div class="oldc"><h3>Returning users <span>${n(L.returning.length)} visit${L.returning.length === 1 ? "" : "s"}</span></h3>${list(L.returning)}</div>
   </div><p class="note">One line per person per day. Users are shown by a short anonymous ID because EssayWiz doesn't store names or emails.</p></div>`;
-}
-/* Student survey (/survey/): totals from /api/survey. */
-let survey = null, surveyAt = 0;
-async function loadSurvey() {
-  if (Date.now() - surveyAt < 55000) return; surveyAt = Date.now();
-  try {
-    const r = await fetch("/api/survey", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token() }, body: JSON.stringify({ action: "results" }) });
-    if (!r.ok) return; const d = await r.json(); if (d.code) return;
-    survey = d; const box = $("surveyBox"); if (box) box.innerHTML = surveyCard();
-  } catch {}
-}
-const SV = {
-  country: { india: "India", canada: "Canada", usa: "USA", other: "Other" },
-  level: { ug1: "1st year", ug2: "2nd/3rd year", ug_final: "Final year", pg: "Master's/PhD", other: "Other" },
-  field: { arts: "Arts", commerce: "Commerce", science: "Science", engineering: "Engineering/CS", health: "Health", law: "Law", other: "Other" },
-  tools: { grammarly: "Grammarly", quillbot: "QuillBot", chatgpt: "ChatGPT/AI", turnitin: "Turnitin", scribbr: "Scribbr", free_checkers: "Free checkers", friend: "Friend/tutor", none: "Nothing" },
-  worries: { plagiarism: "Plagiarism by mistake", ai_flag: "Wrongly flagged as AI", grammar: "Grammar", citations: "Citations", clarity: "Clarity/structure", word_count: "Word count" },
-  flagged: { me: "Yes, me", friend: "Yes, a friend", no: "No", unsure: "Not sure" },
-  detector: { yes: "Yes", no: "No", unsure: "Not sure" },
-  priceFeel: { cheap: "Cheap", fair: "Fair", high: "A bit high", too_high: "Too expensive" },
-  plan: { monthly: "Monthly", semester: "Semester", yearly: "Yearly", per_essay: "Per essay" },
-  pay: { upi: "UPI", card: "Card", paytm: "Paytm", netbanking: "Net banking", paypal: "PayPal", wallet: "Apple/Google Pay" },
-  used: { yes: "Used EssayWiz", no: "Haven't used it" },
-  features: { plagiarism: "Plagiarism check", ai: "AI-writing check", grammar: "Grammar & clarity", citations: "Citations", proofread: "Proof you wrote it", paraphrase: "Rewrite in own words" },
-};
-const PRICE_LBL = { india: { p1: "₹99", p2: "₹149", p3: "₹199", p4: "₹299", p5: "₹499", none: "Wouldn't pay" }, west: { p1: "$2.99", p2: "$4.99", p3: "$7.99", p4: "$9.99", p5: "$14.99", none: "Wouldn't pay" } };
-function svBars(title, c, labels) {
-  if (!c || !c.answered) return `<div><h3>${title}</h3><p class="note">No answers yet.</p></div>`;
-  const rows = Object.entries(c.counts).filter(([k]) => labels[k]).sort((a, b) => b[1] - a[1]);
-  return `<div><h3>${title} <span>${n(c.answered)} answered</span></h3>${rows.map(([k, v]) => `<div class="rv-row"><span style="min-width:132px">${esc(labels[k])}</span><div class="rv-bar"><i style="width:${v / c.answered * 100}%;background:var(--bar)"></i></div><span style="min-width:62px;text-align:right">${v} · ${Math.round(v / c.answered * 100)}%</span></div>`).join("")}</div>`;
-}
-function surveyCard() {
-  const s = survey; if (!s) return "";
-  const head = `<h2>Student survey</h2><p class="note" style="margin:-4px 0 12px">Answers from <a href="/survey/" target="_blank" rel="noopener">essaywiz.app/survey</a> · ${n(s.total)} response${s.total === 1 ? "" : "s"} · ${n(s.emails)} left an email</p>`;
-  if (!s.total) return `<div class="card">${head}<p class="note">No responses yet. Share the survey link with students.</p></div>`;
-  const feat = Object.entries(s.features).sort((a, b) => b[1].avg - a[1].avg).map(([k, f]) => `<div class="rv-row"><span style="min-width:150px">${SV.features[k]}</span><div class="rv-bar"><i style="width:${f.avg / 5 * 100}%;background:var(--good)"></i></div><span style="min-width:40px;text-align:right">${f.avg.toFixed(1)}/5</span></div>`).join("");
-  const texts = (k, t) => s.text[k] && s.text[k].length ? `<details style="margin-top:10px"><summary>${t} (${s.text[k].length})</summary><ul class="rv-list">${s.text[k].map(x => `<li><span class="note">${new Date(x.at).toLocaleDateString()}${x.country ? " · " + esc(SV.country[x.country] || x.country) : ""}</span><p>${esc(x.text)}</p></li>`).join("")}</ul></details>` : "";
-  const nps = s.nps ? tile("Recommend score (NPS)", (s.nps.score > 0 ? "+" : "") + s.nps.score, `${n(s.nps.answered)} EssayWiz users · ${n(s.nps.promoters)} promoters, ${n(s.nps.detractors)} detractors`, s.nps.score > 0 ? "pos" : s.nps.score < 0 ? "neg" : "") : tile("Recommend score (NPS)", "–", "needs answers from EssayWiz users");
-  return `<div class="card">${head}
-    <div class="tiles">${tile("Responses", n(s.total), "all time")}${nps}${tile("Worried about AI flags", s.multi.worries.answered ? Math.round(s.multi.worries.counts.ai_flag / s.multi.worries.answered * 100) + "%" : "–", "picked it as a top worry")}${tile("Wrongly flagged", s.single.flagged.answered ? Math.round((s.single.flagged.counts.me + s.single.flagged.counts.friend) / s.single.flagged.answered * 100) + "%" : "–", "they or a friend")}</div>
-    <div class="lg">
-      ${svBars("Where they study", s.single.country, SV.country)}${svBars("Year", s.single.level, SV.level)}
-      ${svBars("Tools they use now", s.multi.tools, SV.tools)}${svBars("Top worries", s.multi.worries, SV.worries)}
-      <div><h3>Most useful features <span>average, 1–5</span></h3>${feat}</div>${svBars("College uses an AI detector", s.single.detector, SV.detector)}
-      ${svBars("Good-deal price · India", s.pricing.india.goodPrice, PRICE_LBL.india)}${svBars("Good-deal price · Canada/USA", s.pricing.west.goodPrice, PRICE_LBL.west)}
-      ${svBars("₹199 feels… · India", s.pricing.india.priceFeel, SV.priceFeel)}${svBars("$5 feels… · Canada/USA", s.pricing.west.priceFeel, SV.priceFeel)}
-      ${svBars("Plan they'd pick", s.single.plan, SV.plan)}${svBars("How they'd pay", s.multi.pay, SV.pay)}
-    </div>
-    ${texts("improve", "What EssayWiz users want improved")}${texts("tryIt", "What would make non-users try it")}${texts("more", "Other comments")}${texts("paysWhat", "Tools they pay for")}
-    <p class="note">Emails are kept with the answers in Supabase (feedback table, tool = survey) and aren't shown here.</p></div>`;
 }
 function reviewsCard() {
   const r = data.reviews; if (!r) return "";
