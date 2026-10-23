@@ -1,0 +1,72 @@
+# EssayWiz Instagram agent: posts a Reel every day and a carousel on Mon/Wed/Fri (or when the site changes).
+# Runs at 19:00 India time. Run it by hand from the Actions tab ("Run workflow"), with "dry run" to preview only.
+# Pause everything: Settings > Secrets and variables > Actions > Variables > SOCIAL_PAUSED = true
+name: Instagram agent
+on:
+  schedule:
+    - cron: "30 13 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: plan and render, post nothing"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: instagram-agent
+  cancel-in-progress: false
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install ffmpeg (slides must be JPEG for Instagram)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Load the post log (social-log branch)
+        run: |
+          git config --global user.name "EssayWiz Instagram agent"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin social-log >/dev/null; then
+            git fetch --depth=1 origin social-log:social-log
+            git worktree add state social-log
+          else
+            git worktree add --orphan -b social-log state
+          fi
+      - name: Run the agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ vars.IG_USER_ID }}
+          VIDEO_MODEL: ${{ vars.VIDEO_MODEL }}
+          VIDEO_INPUT: ${{ vars.VIDEO_INPUT }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
+          SOCIAL_PAUSED: ${{ vars.SOCIAL_PAUSED }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          STATE_DIR: state
+          NEW_TOKEN_FILE: ${{ runner.temp }}/ig_token
+        run: node social/agent.mjs
+      - name: Save the refreshed Instagram token
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_ADMIN_TOKEN }}
+        run: |
+          if [ -s "$RUNNER_TEMP/ig_token" ] && [ -n "$GH_TOKEN" ]; then
+            gh secret set IG_ACCESS_TOKEN --repo "$GITHUB_REPOSITORY" < "$RUNNER_TEMP/ig_token" && echo "Instagram token updated."
+          fi
+          rm -f "$RUNNER_TEMP/ig_token"
+      - name: Upload today's slides (for checking)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instagram-media
+          path: state/media
+          if-no-files-found: ignore
+          retention-days: 14

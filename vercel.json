@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "social-log": false
+    }
+  },
   "rewrites": [
     {
       "source": "/.well-known/apple-developer-merchantid-domain-association",
