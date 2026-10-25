@@ -5,7 +5,7 @@ import { timingSafeEqual } from "node:crypto";
 import { guard, fail } from "./_lib.js";
 import { isOwner, subscriptionReport, billingEnabled } from "./_billing.js";
 import { dbEnabled } from "./_db.js";
-import { selectAll } from "./_stats.js";
+import { selectAll, priceOf, SEARCH_PRICE } from "./_stats.js";
 
 export const config = { maxDuration: 60 };
 const env = k => String(process.env[k] || "").trim();
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     const dayList = Array.from({ length: days }, (_, i) => new Date(start.getTime() + i * 864e5).toISOString().slice(0, 10));
 
     const [events, active, subs, reviews] = await Promise.all([
-      selectAll("events", `select=created_at,tool,mode,status,user_hash,plan,words,cost_usd,searches&created_at=gte.${encodeURIComponent(sinceISO)}&order=created_at.asc`),
+      selectAll("events", `select=created_at,tool,mode,status,user_hash,plan,words,cost_usd,searches,in_tokens,out_tokens,model&created_at=gte.${encodeURIComponent(sinceISO)}&order=created_at.asc`),
       selectAll("active_days", "select=user_hash,day,plan&order=day.asc"),
       selectAll("subscriptions", "select=id,user_hash,created_at&order=created_at.desc", 500),
       selectAll("feedback", "select=id,created_at,tool,score,comment,kind&kind=in.(review,review_approved)&order=created_at.desc", 2000),
@@ -44,18 +44,22 @@ export default async function handler(req, res) {
     // Users: everyone except the owner. "New" = first day we ever saw them.
     const firstSeen = new Map();
     for (const a of active) if (a.plan !== "owner" && !firstSeen.has(a.user_hash)) firstSeen.set(a.user_hash, a.day);
-    const daily = Object.fromEntries(dayList.map(d => [d, { day: d, users: new Set(), newUsers: 0, checks: 0, cost: 0, revenue: 0 }]));
+    const daily = Object.fromEntries(dayList.map(d => [d, { day: d, users: new Set(), newUsers: 0, checks: 0, cost: 0, claude: 0, detector: 0, revenue: 0 }]));
     for (const a of active) if (a.plan !== "owner" && daily[a.day]) daily[a.day].users.add(a.user_hash);
     for (const [, d] of firstSeen) if (daily[d]) daily[d].newUsers++;
 
     // Usage and Claude cost (the owner's own checks cost real money too, so they count toward cost).
     const tools = {};
-    let checks = 0, failed = 0, words = 0, aiCost = 0, ownerCost = 0, limitHits = 0, proSignups = 0, searches = 0;
+    let checks = 0, failed = 0, words = 0, aiCost = 0, ownerCost = 0, limitHits = 0, proSignups = 0, searches = 0, claudeCost = 0, detectorCost = 0;
     for (const e of events) {
       const d = daily[String(e.created_at).slice(0, 10)];
       const cost = Number(e.cost_usd) || 0;
-      aiCost += cost; if (e.plan === "owner") ownerCost += cost;
-      if (d) d.cost += cost;
+      // cost_usd = Claude tokens + web searches + outside AI detectors (Sapling). Recompute the Claude part
+      // from the stored tokens; what's left is what the outside detectors cost.
+      const [pin, pout] = priceOf(e.model);
+      const claude = Math.min(cost, ((Number(e.in_tokens) || 0) * pin + (Number(e.out_tokens) || 0) * pout) / 1e6 + (Number(e.searches) || 0) * SEARCH_PRICE);
+      aiCost += cost; claudeCost += claude; detectorCost += cost - claude; if (e.plan === "owner") ownerCost += cost;
+      if (d) { d.cost += cost; d.claude += claude; d.detector += cost - claude; }
       if (e.tool === "billing") { if (e.mode === "pro_signup") proSignups++; continue; }
       if (e.status === 402) { limitHits++; continue; }
       if (e.status >= 400) { failed++; continue; }
@@ -117,10 +121,10 @@ export default async function handler(req, res) {
         checks, failed, limitHits, words, searches,
         proActive, proSignups, subscriptionsKnown: subs.length, subStatus, subList,
         gross: round(gross), fees: round(fees), net: round(net), currency: [...currencies].join("/") || "USD",
-        aiCost: round(aiCost, 4), ownerAiCost: round(ownerCost, 4), costPerCheck: checks ? round(aiCost / checks, 4) : 0,
+        aiCost: round(aiCost, 4), claudeCost: round(claudeCost, 4), detectorCost: round(detectorCost, 4), ownerAiCost: round(ownerCost, 4), costPerCheck: checks ? round(aiCost / checks, 4) : 0,
         fixedMonthly, fixed: round(fixed), profit: round(net - aiCost - fixed),
       },
-      daily: dayList.map(d => ({ day: d, users: daily[d].users.size, newUsers: daily[d].newUsers, returning: Math.max(0, daily[d].users.size - daily[d].newUsers), checks: daily[d].checks, cost: round(daily[d].cost, 4), revenue: round(daily[d].revenue) })),
+      daily: dayList.map(d => ({ day: d, users: daily[d].users.size, newUsers: daily[d].newUsers, returning: Math.max(0, daily[d].users.size - daily[d].newUsers), checks: daily[d].checks, cost: round(daily[d].cost, 4), claude: round(daily[d].claude, 4), detector: round(daily[d].detector, 4), revenue: round(daily[d].revenue) })),
       logins,
       tools: Object.values(tools).map(t => ({ ...t, cost: round(t.cost, 4), avgCost: round(t.cost / t.checks, 4) })).sort((a, b) => b.checks - a.checks),
       billing: billingEnabled(),

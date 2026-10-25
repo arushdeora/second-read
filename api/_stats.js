@@ -21,7 +21,7 @@ const PRICES = [
   [/opus/, 15, 75],
   [/fable|mythos/, 10, 50],
 ];
-const SEARCH_PRICE = 10 / 1000;   // web search: $10 per 1,000 searches
+export const SEARCH_PRICE = 10 / 1000;   // web search: $10 per 1,000 searches
 
 export function priceOf(model) {
   if (env("AI_PRICE_IN") && env("AI_PRICE_OUT")) return [Number(env("AI_PRICE_IN")), Number(env("AI_PRICE_OUT"))];

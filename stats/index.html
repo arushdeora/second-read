@@ -152,7 +152,7 @@ function render() {
     <h2>Today</h2>
     <div class="today">
       ${tile("Users", n(td.users), `${n(td.newUsers)} new · ${n(td.returning || 0)} returning`)}
-      ${tile("Checks", n(td.checks), usd(td.cost || 0, 3) + " Claude cost")}
+      ${tile("Checks", n(td.checks), `${usd(td.claude || 0, 3)} Claude · ${usd(td.detector || 0, 3)} Sapling`)}
       ${tile("Revenue", usd(td.revenue || 0), "after fees", (td.revenue || 0) > 0 ? "pos" : "")}
     </div>
     <h2>Last ${data.days} days</h2>
@@ -163,15 +163,16 @@ function render() {
       ${tile("Checks run", n(s.checks), `${n(s.words)} words · ${n(s.limitHits)} hit a free limit`)}
       ${tile("Pro members", n(s.proActive), `${conv} · ${n(s.proSignups)} sign-ups`)}
       ${tile("Revenue (after PayPal fees)", usd(s.net), data.billing ? `${usd(s.gross)} paid − ${usd(s.fees)} fees` : "PayPal not connected")}
-      ${tile("Claude cost", usd(s.aiCost, s.aiCost < 1 ? 4 : 2), `${usd(s.costPerCheck, 4)} per check · ${usd(s.ownerAiCost, 4)} from your own tests`)}
+      ${tile("Claude cost", usd(s.claudeCost || 0, (s.claudeCost || 0) < 1 ? 4 : 2), `${usd(s.costPerCheck, 4)} per check (all AI) · ${usd(s.ownerAiCost, 4)} from your own tests`)}
+      ${tile("Sapling cost (AI detector)", usd(s.detectorCost || 0, (s.detectorCost || 0) < 1 ? 4 : 2), "outside AI detector, paid per check")}
       ${tile("Fixed costs", usd(s.fixed), s.fixedMonthly ? `${usd(s.fixedMonthly)}/month, prorated` : "set FIXED_MONTHLY_COSTS_USD")}
-      ${tile("Profit", usd(s.profit), "revenue − Claude − fixed costs", profitCls)}
+      ${tile("Profit", usd(s.profit), "revenue − Claude − Sapling − fixed costs", profitCls)}
       ${tile("All-time users", n(s.totalUsers), "since tracking started")}
     </div>
     <div class="card">
       <div class="chart-head"><h2 id="chartTitle"></h2>
         <div class="seg" role="group" aria-label="Chart metric">
-          <button data-m="users">Users</button><button data-m="checks">Checks</button><button data-m="cost">Claude cost</button><button data-m="revenue">Revenue</button>
+          <button data-m="users">Users</button><button data-m="checks">Checks</button><button data-m="cost">AI cost</button><button data-m="revenue">Revenue</button>
         </div></div>
       <div class="chart" id="chart"></div>
     </div>
@@ -179,7 +180,7 @@ function render() {
     ${reviewsCard()}
     <div class="card"><h2>By tool</h2><div class="tbl">${toolTable()}</div></div>
     <div class="card"><details><summary>Daily numbers (table)</summary><div class="tbl">${dailyTable()}</div></details>
-      <p class="note">Claude cost is estimated from the tokens each request used and Anthropic's published prices; your Anthropic Console shows the exact bill. Revenue comes straight from PayPal. Numbers start from when tracking was switched on.</p></div>`;
+      <p class="note">Claude cost is estimated from the tokens each request used and Anthropic's published prices; your Anthropic Console shows the exact bill. Sapling cost is estimated at $0.005 per 1,000 characters; your Sapling dashboard shows the exact bill. Revenue comes straight from PayPal. Numbers start from when tracking was switched on.</p></div>`;
   document.querySelectorAll("[data-m]").forEach(b => { b.setAttribute("aria-pressed", b.dataset.m === metric); b.onclick = () => { metric = b.dataset.m; render(); }; });
   drawChart();
   document.querySelectorAll("[data-rv]").forEach(b => b.onclick = async () => {
@@ -210,17 +211,17 @@ function reviewsCard() {
 }
 function toolTable() {
   if (!data.tools.length) return `<p class="note">No checks yet in this period.</p>`;
-  return `<table><thead><tr><th>Tool</th><th class="r">Checks</th><th class="r">Words</th><th class="r">Claude cost</th><th class="r">Cost per check</th></tr></thead><tbody>${
+  return `<table><thead><tr><th>Tool</th><th class="r">Checks</th><th class="r">Words</th><th class="r">AI cost</th><th class="r">Cost per check</th></tr></thead><tbody>${
     data.tools.map(t => `<tr><td>${esc(TOOL_NAMES[t.tool] || t.tool)}</td><td class="r">${n(t.checks)}</td><td class="r">${n(t.words)}</td><td class="r">${usd(t.cost, 4)}</td><td class="r">${usd(t.avgCost, 4)}</td></tr>`).join("")}</tbody></table>`;
 }
 function dailyTable() {
-  return `<table><thead><tr><th>Day</th><th class="r">Users</th><th class="r">New</th><th class="r">Returning</th><th class="r">Checks</th><th class="r">Claude cost</th><th class="r">Revenue</th></tr></thead><tbody>${
-    data.daily.slice().reverse().map(d => `<tr><td>${d.day}</td><td class="r">${n(d.users)}</td><td class="r">${n(d.newUsers)}</td><td class="r">${n(d.returning || 0)}</td><td class="r">${n(d.checks)}</td><td class="r">${usd(d.cost, 4)}</td><td class="r">${usd(d.revenue)}</td></tr>`).join("")}</tbody></table>`;
+  return `<table><thead><tr><th>Day</th><th class="r">Users</th><th class="r">New</th><th class="r">Returning</th><th class="r">Checks</th><th class="r">Claude cost</th><th class="r">Sapling cost</th><th class="r">Revenue</th></tr></thead><tbody>${
+    data.daily.slice().reverse().map(d => `<tr><td>${d.day}</td><td class="r">${n(d.users)}</td><td class="r">${n(d.newUsers)}</td><td class="r">${n(d.returning || 0)}</td><td class="r">${n(d.checks)}</td><td class="r">${usd(d.claude || 0, 4)}</td><td class="r">${usd(d.detector || 0, 4)}</td><td class="r">${usd(d.revenue)}</td></tr>`).join("")}</tbody></table>`;
 }
 
 function niceMax(v) { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
 function drawChart() {
-  const titles = { users: "Daily users: new and returning", checks: "Checks per day", cost: "Claude cost per day (USD)", revenue: "Revenue per day (USD, after fees)" };
+  const titles = { users: "Daily users: new and returning", checks: "Checks per day", cost: "AI cost per day: Claude + Sapling (USD)", revenue: "Revenue per day (USD, after fees)" };
   $("chartTitle").textContent = titles[metric];
   const rows = data.daily, vals = rows.map(d => d[metric]);
   const money = metric === "cost" || metric === "revenue";
