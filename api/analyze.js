@@ -156,14 +156,18 @@ Include every sentence number exactly once.`;
     // Consensus with outside detectors: only call it AI (or human) when at least two independent votes agree;
     // when they disagree, say it's unclear instead of showing a confident number.
     const ext = await extP;
-    let verdict = score >= 60 ? "ai" : score < 30 ? "human" : "unclear";
+    let verdict = score >= 60 ? "ai" : score < 30 ? "human" : "unclear", extSure = null;
     if (ext.length) {
       const extAvg = ext.reduce((a, d) => a + d.score, 0) / ext.length * 100;
       const aiVotes = ext.filter(d => d.score >= 0.7).length + (modelMean >= 70 ? 1 : 0);
       const humanVotes = ext.filter(d => d.score <= 0.3).length + (score <= 30 ? 1 : 0);
       let combined = 0.7 * extAvg + 0.3 * score;
-      if (aiVotes >= 2 && aiVotes > humanVotes) { verdict = "ai"; combined = Math.max(combined, 60); }
-      else if (humanVotes >= 2 && aiVotes === 0) { verdict = "human"; combined = Math.min(combined, 29); }
+      // A trained outside detector that is very sure decides on its own: on our Oct 2026 test Sapling gave
+      // 0-2% to all 20 human essays and 100% to all 11 AI ones, including AI told to "write like a student"
+      // and a cited literary essay, which Claude and the style checks missed. Every outside detector must agree.
+      extSure = ext.every(d => d.score >= 0.9) ? "ai" : ext.every(d => d.score <= 0.1) ? "human" : null;
+      if (extSure === "ai" || (aiVotes >= 2 && aiVotes > humanVotes)) { verdict = "ai"; combined = Math.max(combined, extSure === "ai" ? 85 : 60); }
+      else if (extSure === "human" || (humanVotes >= 2 && aiVotes === 0)) { verdict = "human"; combined = Math.min(combined, 29); }
       else { verdict = "unclear"; combined = Math.max(30, Math.min(59, combined)); }
       score = Math.round(clamp(combined));
       const textOf = new Map(sentences.map(s => [s.i, s.text]));
@@ -189,7 +193,10 @@ Include every sentence number exactly once.`;
     }
     // When the calibrated score is low, don't show a model summary that may still talk about AI signs.
     const voted = ext.length ? `${ext.length + 1} detectors checked this (${ext.map(d => d.name).join(", ")} and EssayWiz). ` : "";
-    const extSummary = !ext.length ? "" : voted + (verdict === "ai" ? "They agree it reads as AI-written. Rewrite the highlighted sentences in your own words." : verdict === "human" ? "They agree it reads as human-written." : "They don't agree, so we can't say for sure. Treat this as a guide and revise any highlighted sentence that doesn't sound like you.");
+    const sureNames = ext.map(d => d.name).join(" and ");
+    const extSummary = !ext.length ? "" : extSure === "ai" && verdict === "ai" ? `${sureNames}, a detector trained on millions of human and AI texts, is highly confident this was AI-written. Rewrite it in your own words.`
+      : extSure === "human" && verdict === "human" ? `${sureNames}, a detector trained on millions of human and AI texts, found no signs of AI writing.`
+      : voted + (verdict === "ai" ? "They agree it reads as AI-written. Rewrite the highlighted sentences in your own words." : verdict === "human" ? "They agree it reads as human-written." : "They don't agree, so we can't say for sure. Treat this as a guide and revise any highlighted sentence that doesn't sound like you.");
     const templateSummary = st.template && score >= 60 && !extSummary ? "This follows the template AI essays use: many stock linking words (like \"moreover\", \"additionally\", \"crucial\", \"in conclusion\") in evenly sized sentences. Rewrite it in your own voice with specific examples, and vary your sentences." : "";
     const summary = templateSummary || (rewritten && rewritten.share >= 30 ? `About ${rewritten.share}% of this text matches output from EssayWiz's ${rewritten.tool === "humanizer" ? "Humanizer" : "Paraphraser"}, so it reads as machine-rewritten. Rewrite those sentences in your own words.` : extSummary || (score < 30 ? "" : String(r.summary || "")) || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector."));
     await collect(req, body, sentences.map(s => s.text).join(" "), { tool: "ai", modelScore: score });

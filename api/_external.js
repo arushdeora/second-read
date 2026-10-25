@@ -1,6 +1,6 @@
 // Outside AI-text detectors used as extra, independent votes in the AI Detector.
 // Each one switches on when its key is set in Vercel (Settings → Environment Variables):
-//   PANGRAM_API_KEY      Pangram    (~$0.05 per 1,000 words)  https://pangram.readthedocs.io/en/stable/api/rest.html
+//   PANGRAM_API_KEY      Pangram    (~$0.05 per 100 words since Pangram 4)  https://pangram.readthedocs.io/en/stable/api/rest.html
 //   SAPLING_API_KEY      Sapling    (~$0.005 per 1,000 characters, English only)  https://sapling.ai/docs/api/detector/
 //   ORIGINALITY_API_KEY  Originality.ai (~1 credit per 100 words)  https://docs.originality.ai
 // Optional:
@@ -38,7 +38,8 @@ const PROVIDERS = {
     // fraction_ai = share judged AI; AI-assisted text counts half.
     const score = Math.min(1, Number(res.fraction_ai || 0) + 0.5 * Number(res.fraction_ai_assisted || 0));
     const segments = (Array.isArray(res.windows) ? res.windows : []).map(w => ({ text: String(w.text || ""), score: Number(w.ai_assistance_score) || 0 }));
-    return { name: "Pangram", score, segments, label: res.prediction_short || null, cost: Math.max(1, Math.ceil(words(text) / 1000)) * 0.05 };
+    // Pangram 4 bills $0.05 per 100 words (was per 1,000); our Oct 2026 test matched this rate.
+    return { name: "Pangram", score, segments, label: res.prediction_short || null, cost: Math.max(1, Math.ceil(words(text) / 100)) * 0.05 };
   },
 
   async sapling(text) {
