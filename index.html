@@ -85,6 +85,7 @@ textarea#input{flex:1;width:100%;border:0;resize:none;padding:16px;font:16px/1.7
 .consent a{color:var(--muted)}
 .fb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 4px;padding-top:12px;border-top:1px dashed var(--line);font-size:.85rem;color:var(--muted)}
 .fb button{padding:4px 10px;font-size:.82rem}
+.fb.ai{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink)}
 .pfoot .left{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .meta{font-size:.84rem;color:var(--muted)}
 .out{flex:1;overflow:auto;padding:16px;max-height:640px}
@@ -217,6 +218,7 @@ apple-pay-button{--apple-pay-button-width:100%;--apple-pay-button-height:46px;--
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"EssayWiz","url":"https://essaywiz.app/","logo":"https://essaywiz.app/icon-512.png","founder":{"@type":"Person","name":"Arush Deora"},"sameAs":["https://www.instagram.com/essaywiz.app/"]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"EssayWiz","alternateName":"EssayWiz.app","url":"https://essaywiz.app/"}</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 <header class="top">
@@ -940,11 +942,19 @@ $("contrib").onchange = () => { try { localStorage.setItem("sr_contrib", $("cont
 function addFeedback(host){
   const key = Object.keys(outs).find(k => outs[k] === host); if (!key || !host.childElementCount) return;
   host.querySelectorAll(".fb").forEach(x => x.remove());
-  const bar = el("div", "fb"); bar.append(el("span", null, key === "ai" ? "Is this result right?" : "Was this helpful?"));
+  const bar = el("div", key === "ai" ? "fb ai" : "fb"); bar.append(el("span", null, key === "ai" ? "Is this result right? Your answer trains our detector." : "Was this helpful?"));
+  const text = input.value.trim().slice(0, 40000);
+  const post = (rating, kind, extra) => api("/api/feedback", { tool: key, rating, kind, score: host._score, text, ...extra }).catch(() => {});
   const send = (rating, kind) => async () => {
     bar.querySelectorAll("button").forEach(b => b.disabled = true);
-    try { await api("/api/feedback", { tool: key, rating, kind, score: host._score, text: input.value.trim().slice(0, 40000) }); } catch {}
-    bar.textContent = kind !== "wrong_ai" ? "Thanks for the feedback!" : contributing() ? "Thanks! We'll use this to teach our detector that you wrote it." : "Thanks! Tick \"Let EssayWiz use this text\" next time so our detector can learn from it.";
+    if (key !== "ai" || contributing()) { await post(rating, kind); bar.textContent = key === "ai" ? "Thanks! We'll use this to make our detector more accurate." : "Thanks for the feedback!"; return; }
+    // Not sharing yet: ask once, right here, instead of losing the label. The feedback is saved either way.
+    bar.replaceChildren(el("span", null, kind === "wrong_ai" ? "Thanks! Can we keep this text so the detector learns you wrote it? It's stored without your name." : "Thanks! Can we keep this text to train our detector? It's stored without your name."));
+    const yes = el("button", null, "Yes, share this text"), no = el("button", null, "No thanks");
+    yes.type = no.type = "button";
+    yes.onclick = async () => { yes.disabled = no.disabled = true; await post(rating, kind, { contribute: true }); bar.textContent = "Thank you! This helps EssayWiz get it right for everyone."; };
+    no.onclick = async () => { yes.disabled = no.disabled = true; await post(rating, kind); bar.textContent = "No problem, your text wasn't saved."; };
+    bar.append(yes, no);
   };
   const mk = (label, rating, kind) => { const b = el("button", null, label); b.type = "button"; b.onclick = send(rating, kind); bar.append(b); };
   if (key === "ai"){ mk("👍 Correct", "up", "correct_ai"); mk("✋ Wrong, I wrote this myself", "down", "wrong_ai"); }

@@ -22,7 +22,9 @@ export default async function handler(req, res) {
   const kind = KINDS.has(body.kind) ? body.kind : null;
   let sampleId = null;
   if (body.contribute === true && body.text) {
-    const label = kind === "wrong_ai" ? "human" : null;
+    // "correct_ai" confirms whatever the detector said: high score = AI, low score = human.
+    const s = Number.isFinite(+body.score) ? +body.score : null;
+    const label = kind === "wrong_ai" ? "human" : kind === "correct_ai" && s !== null ? (s >= 70 ? "ai" : s <= 30 ? "human" : null) : null;
     sampleId = await collect(req, body, body.text, { tool, label, modelScore: Number.isFinite(+body.score) ? Math.round(+body.score) : null });
     if (sampleId && label) await update("samples", "id=eq." + sampleId, { label });
   }

@@ -35,12 +35,20 @@ async function ownModel(texts) {
 //   2. measurable style statistics (sentence-length variety, stock AI phrases, personal voice).
 // Formal or careful human writing is common in university work, so the default leans human.
 
-const PHRASES = ["delve", "moreover", "furthermore", "additionally", "in conclusion", "it is important to note", "it's important to note",
-  "plays a crucial role", "play a crucial role", "plays a pivotal role", "pivotal", "tapestry", "in today's", "rapidly evolving", "ever-evolving",
-  "landscape", "foster", "notably", "underscore", "multifaceted", "realm", "showcase", "seamless", "robust", "leverage", "harness",
-  "vibrant", "intricate", "testament", "comprehensive", "paramount", "embark", "holistic", "nuanced", "in summary", "a myriad of",
-  "serves as", "navigate the", "navigating the", "it is worth noting", "in the realm of", "shed light on", "a deeper understanding",
-  "ultimately,", "overall,", "in essence", "stands as", "game-changer", "unlock", "elevate"];
+// Only phrases that are rare in student writing. Connectors schools teach ("moreover", "furthermore",
+// "additionally", "in conclusion", "overall", "ultimately") and everyday words ("landscape", "comprehensive",
+// "robust") are left out: counting them flagged honest essays.
+const PHRASES = ["delve", "it is important to note", "it's important to note",
+  "plays a crucial role", "play a crucial role", "plays a pivotal role", "play a pivotal role", "tapestry", "in today's fast-paced", "rapidly evolving", "ever-evolving",
+  "evolving landscape", "multifaceted", "in the realm of", "a testament to", "embark on", "holistic", "a myriad of",
+  "navigate the complexities", "navigating the complexities", "it is worth noting", "shed light on", "a deeper understanding",
+  "in essence", "stands as a", "game-changer", "unlock the", "elevate your", "seamlessly", "underscores the"];
+
+// Connectors and filler words that students also use. One or two mean nothing; many different ones, densely,
+// in evenly sized sentences is the template AI essays follow. Tested Oct 2026: fired on 0 of 719 human essays
+// and 14 of 30 AI essays.
+const CONNECTORS = ["moreover", "furthermore", "additionally", "in conclusion", "in summary", "overall,", "ultimately,", "notably",
+  "crucial", "essential", "significant", "foster", "landscape", "comprehensive", "robust", "vital"];
 
 const clamp = (x, a = 0, b = 100) => Math.max(a, Math.min(b, x));
 const wordsOf = s => s.match(/[A-Za-z’'-]+/g) || [];
@@ -65,7 +73,10 @@ function stats(sentences) {
   const pers = clamp((2 - personalRate) / 2 * 50);                         // no personal voice is only a weak signal
   // No personal voice is normal in summaries and literary analysis, so it only counts a little.
   const score = 0.50 * burst + 0.45 * phr + 0.05 * pers;
-  return { score, cv, phraseHits, phraseRate, personalRate, words: n };
+  const connRate = CONNECTORS.reduce((c, p) => c + (lower.split(p).length - 1), 0) / n * 100;
+  const connKinds = CONNECTORS.filter(p => lower.includes(p)).length;
+  const template = connKinds >= 4 && connRate >= 1.3 && cv < 0.40 && lens.length >= 8;
+  return { score, cv, phraseHits, phraseRate, personalRate, words: n, template };
 }
 
 async function handler(req, res) {
@@ -80,16 +91,16 @@ async function handler(req, res) {
 Do NOT treat these as AI evidence on their own: formal or academic tone, correct grammar, good vocabulary, clear structure, topic sentences, citations, non-native English patterns, or simply being well written. Many careful human writers produce this.
 
 Count as AI evidence only concrete markers: stock AI phrases ("delve", "it is important to note", "plays a crucial/pivotal role", "in today's rapidly evolving", "tapestry", "multifaceted", "navigate the landscape"), empty generic claims with no specifics, perfectly balanced lists of three repeated across sentences, hedging boilerplate, and the same sentence rhythm over and over.
-Many AI texts avoid those buzzwords (students ask for "plain" or "student-like" writing, or run it through a humanizer). Judge the text as a whole too. These also count as AI evidence when several appear together: every paragraph built the same way (claim, explanation, neat one-line takeaway), a tidy aphorism closing each paragraph (like "and that makes all the difference"), examples that are textbook-standard rather than drawn from a specific source the student read, perfectly smooth prose with zero slips or quirks over many sentences, a staged casual voice (like "here's the thing" or "honestly, it's simple") that never says anything specific to the writer, and a conclusion that neatly restates the opening.
-Count as human evidence: specific details from a named source the student is working with (an article, a case, a film scene, page numbers), in-text citations like (Author, 2019), uneven rhythm, idiosyncratic wording, awkward or non-native phrasing, small mistakes (typos, a missing space after a comma, agreement errors).
+Schools teach a standard essay shape, so these are NOT AI evidence either: the same paragraph structure throughout (topic sentence, explanation, example), connectors like "moreover", "furthermore", "in conclusion", a conclusion that restates the introduction, common textbook examples, or clean prose without mistakes.
+Count as human evidence: specific details, examples, names, numbers, personal opinions or experiences, details from a named source (an article, a case, a film scene, page numbers), in-text citations like (Author, 2019), uneven rhythm, informal or idiosyncratic wording, awkward or non-native phrasing, small mistakes (typos, a missing space after a comma, agreement errors).
 Summaries and literary analysis are normally written in the third person without "I": that is NOT AI evidence. Quoting or naming an author and their arguments is normal student work. Formal tone alone is never enough.
 
 Calibration for each sentence's "likelihood":
 - 0-20: ordinary human writing, including formal academic writing
 - 20-40: polished and generic but a human could easily write it
-- 40-70: two or more clear AI markers, or a sentence in a text that reads machine-written as a whole
-- 70-100: obviously machine-like (several stock phrases, or the whole-text AI pattern above is clear and there is no human evidence)
-A typical honest student essay should land mostly between 5 and 35. An AI essay without buzzwords should still score 60+ when the whole-text pattern is clear.
+- 40-70: two or more clear AI markers
+- 70-100: obviously machine-like (several stock phrases, empty and formulaic)
+A typical honest student essay should land mostly between 5 and 35. When in doubt, score lower: wrongly accusing a student is far worse than missing AI text.
 
 Text, split into numbered sentences:
 ${numbered}
@@ -127,13 +138,11 @@ Include every sentence number exactly once.`;
     const modelScore = r.score == null ? modelMean : 0.5 * modelMean + 0.5 * clamp(Number(r.score) || modelMean);
     let score = 0.6 * modelScore + 0.4 * st.score;
     // False accusations are the worst error for students, so without measurable AI fingerprints the score
-    // stays low: no stock phrases caps it at 25 (45 if the model leans AI), few phrases at 40.
-    // But AI text with the buzzwords removed (plain prompts, humanizers) has none of those fingerprints,
-    // so when the model is confident on its own (75+), its view carries the score and can reach "AI".
-    // Only when Claude is part of the reading: our own small model alone isn't reliable enough to accuse.
-    const strongModel = !onlyOwn && modelMean >= 75;
-    if (strongModel) score = Math.max(score, 0.85 * modelMean);
-    else if (st.phraseHits === 0) score = Math.min(score, modelMean >= 60 ? 45 : 25);
+    // stays low: no stock phrases caps it at 25 (50, still "unclear", only if the model is very sure), few phrases at 40.
+    // A confident model alone used to be allowed past these caps; that flagged too many honest essays (Oct 2026).
+    // The AI essay template (see CONNECTORS) is the one fingerprint strong enough to reach "AI" on its own.
+    if (st.template) score = Math.max(score, 62);
+    else if (st.phraseHits === 0) score = Math.min(score, modelMean >= 80 ? 50 : 25);
     else if (st.phraseRate < 0.4) score = Math.min(score, 40);
     else if (st.phraseRate < 0.6) score = Math.min(score, 55);
     // Short texts can't be judged reliably: pull toward a low, neutral value and say so.
@@ -181,7 +190,8 @@ Include every sentence number exactly once.`;
     // When the calibrated score is low, don't show a model summary that may still talk about AI signs.
     const voted = ext.length ? `${ext.length + 1} detectors checked this (${ext.map(d => d.name).join(", ")} and EssayWiz). ` : "";
     const extSummary = !ext.length ? "" : voted + (verdict === "ai" ? "They agree it reads as AI-written. Rewrite the highlighted sentences in your own words." : verdict === "human" ? "They agree it reads as human-written." : "They don't agree, so we can't say for sure. Treat this as a guide and revise any highlighted sentence that doesn't sound like you.");
-    const summary = rewritten && rewritten.share >= 30 ? `About ${rewritten.share}% of this text matches output from EssayWiz's ${rewritten.tool === "humanizer" ? "Humanizer" : "Paraphraser"}, so it reads as machine-rewritten. Rewrite those sentences in your own words.` : extSummary || (score < 30 ? "" : String(r.summary || "")) || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector.");
+    const templateSummary = st.template && score >= 60 && !extSummary ? "This follows the template AI essays use: many stock linking words (like \"moreover\", \"additionally\", \"crucial\", \"in conclusion\") in evenly sized sentences. Rewrite it in your own voice with specific examples, and vary your sentences." : "";
+    const summary = templateSummary || (rewritten && rewritten.share >= 30 ? `About ${rewritten.share}% of this text matches output from EssayWiz's ${rewritten.tool === "humanizer" ? "Humanizer" : "Paraphraser"}, so it reads as machine-rewritten. Rewrite those sentences in your own words.` : extSummary || (score < 30 ? "" : String(r.summary || "")) || (score >= 60 ? "Our detector found many AI-like sentences. Rewrite the highlighted ones in your own voice with specific details." : score >= 30 ? "Some sentences read as AI-like to our detector, but much of it reads human. Revise the highlighted sentences with your own examples." : "Most of this reads like human writing to our detector."));
     await collect(req, body, sentences.map(s => s.text).join(" "), { tool: "ai", modelScore: score });
     res.status(200).json({
       score, verdict, summary, sentences: sentencesOut, shortText, words: st.words, rewritten,
