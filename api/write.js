@@ -1,6 +1,5 @@
 import { guard, askClaude, askClaudeText, rewriteKeepLength, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
-import { markGenerated } from "./_fingerprint.js";
 
 // Writing assistant: grammar & clarity review, rewrite modes, and citations.
 export const config = { maxDuration: 60 };
@@ -100,7 +99,6 @@ ${text}
   const out = await rewriteKeepLength(prompt, text, { ...range, maxTokens: Math.min(16000, Math.ceil(text.length / (style === "longer" ? 1.4 : 2)) + 1200) });
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
   await collect(req, body, out.text, { tool: "para", label: "ai", origin: "generated" });
-  await markGenerated(out.text, "paraphraser");
   res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
 }
 
@@ -140,7 +138,6 @@ ${text}
   const out = await rewriteKeepLength(prompt, text, { min: 0.93, max: 1.15 });
   if (!out.text) return res.status(502).json({ code: "upstream_error" });
   await collect(req, body, out.text, { tool: "para", label: "ai", origin: "generated" });
-  await markGenerated(out.text, "paraphraser");
   res.status(200).json({ text: out.text, cut: out.cut, words: out.words, originalWords: out.originalWords });
 }
 

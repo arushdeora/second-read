@@ -1,7 +1,6 @@
 import { guard, cleanSentences, tooLong, askClaude, fail, tracked, meterExtra } from "./_lib.js";
 import { collect } from "./_db.js";
 import { ownScores } from "./_detector.js";
-import { matchGenerated } from "./_fingerprint.js";
 import { externalScores, sentenceScore } from "./_external.js";
 
 // Outside detectors can take a while (Pangram polls for its result).
@@ -114,7 +113,7 @@ Include every sentence number exactly once.`;
   try {
     // Outside detectors (Pangram, Sapling, Originality.ai) run in parallel with our own checks.
     const extP = externalScores(sentences.map(s => s.text).join(" "), meterExtra);
-    const [own, ours] = await Promise.all([ownModel(sentences.map(s => s.text)), matchGenerated(sentences.map(s => s.text))]);
+    const own = await ownModel(sentences.map(s => s.text));
     const onlyOwn = own && envv("DETECTOR_MODE").toLowerCase() === "only";
     const r = onlyOwn
       ? { score: null, summary: "", sentences: sentences.map((s, k) => ({ i: s.i, likelihood: own[k], reason: own[k] >= 50 ? "Our detector found AI-like patterns here." : "Reads like human writing to our detector." })) }
@@ -178,19 +177,7 @@ Include every sentence number exactly once.`;
         return { ...x, likelihood: Math.round(clamp(0.6 * e + 0.4 * x.likelihood)) };
       });
     }
-    // Text that EssayWiz's own Humanizer or Paraphraser produced is known machine-rewritten text:
-    // mark those sentences and make sure the overall score reflects their share of the text.
-    const ourBy = new Map(sentences.map((s, j) => [s.i, ours[j]]));
-    let rewritten = null;
-    if (ours.some(Boolean)) {
-      let ww = 0, wm = 0, tool = null;
-      sentences.forEach((s, j) => { const w = Math.max(1, wordsOf(s.text).length); ww += w; if (ours[j]) { wm += w; tool = tool || ours[j]; } });
-      const share = ww ? wm / ww : 0;
-      sentencesOut = sentencesOut.map(x => ourBy.get(x.i) ? { ...x, likelihood: 97, reason: `Rewritten by EssayWiz's ${ourBy.get(x.i) === "humanizer" ? "Humanizer" : "Paraphraser"}`, ours: true } : x);
-      score = Math.round(clamp(Math.max(score, share >= 0.5 ? 70 + 30 * share : 100 * share)));
-      rewritten = { share: Math.round(share * 100), tool };
-      if (share >= 0.5) verdict = "ai";
-    }
+    const rewritten = null;   // EssayWiz's own rewrites are no longer fingerprinted (owner's choice, Oct 2026)
     // When the calibrated score is low, don't show a model summary that may still talk about AI signs.
     const voted = ext.length ? `${ext.length + 1} detectors checked this (${ext.map(d => d.name).join(", ")} and EssayWiz). ` : "";
     const sureNames = ext.map(d => d.name).join(" and ");
