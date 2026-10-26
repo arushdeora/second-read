@@ -1,11 +1,13 @@
-import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, fail, tracked } from "./_lib.js";
+import { guard, cleanSentences, tooLong, askClaude, rewriteKeepLength, countWords, fail, tracked } from "./_lib.js";
 import { collect } from "./_db.js";
 import { refundHumanize } from "./_billing.js";
 
 // A full rewrite of a long essay can take a while.
 export const config = { maxDuration: 60 };
 
-const STYLE = `natural, confident university-level English: keep precise academic vocabulary, subject terms and the same level of sophistication as the original (do NOT simplify, dumb down, or make it sound childish or overly casual), varied sentence length (mix shorter and longer, more complex sentences), no stock transitions (moreover, furthermore, in conclusion, it is important to note), no buzzwords (pivotal, multifaceted, leverage, foster, landscape, tapestry, delve), and a direct point of view`;
+// Modelled on a real student analysis essay (Oct 2026): steady medium-to-long sentences that keep the author or
+// source as the subject, each quotation followed by a plain sentence on what it shows, plain reporting verbs.
+const STYLE = `the plain, steady voice of a careful university student: keep precise academic vocabulary, subject terms and the same level of sophistication as the original (do NOT simplify, dumb down, or make it sound childish or overly casual); prefer medium-to-long sentences and avoid strings of short punchy sentences or one-line dramatic statements, but get there by joining related short sentences, never by adding words, filler or new ideas; keep the author, source or topic as the subject of many sentences (for example "Kimmerer explains that...", "Her example shows...", "Tan describes..."); after a quotation or example, add the plain explanation of what it shows in the same or the next sentence ("This contrast reveals...", "This is significant because..."); use simple reporting verbs (explains, describes, shows, argues, suggests, demonstrates) and repeat a key term rather than hunting for fancy synonyms; put words like "therefore" inside a sentence rather than opening with stock transitions (moreover, furthermore, additionally, overall, ultimately, in conclusion, it is important to note); no buzzwords or filler (pivotal, crucial, essential, vital, multifaceted, leverage, foster, landscape, tapestry, delve), and use "significant" at most once; no rhetorical questions, no em dashes`;
 
 async function handler(req, res) {
   const body = await guard(req, res); if (!body) return;
@@ -18,9 +20,9 @@ async function handler(req, res) {
     const prompt = `A university student is revising their own assignment so it reads like their own natural writing. Rewrite the WHOLE text below so it sounds like a real student wrote it: ${STYLE}.
 Rules:
 - Keep the same meaning, argument, structure and paragraph breaks (one blank line between paragraphs).
-- Keep every quotation, citation, reference, name, number and date exactly as written.
+- Keep every quotation, citation, reference, name, number and date exactly as written: copy anything inside quotation marks character for character, and keep each citation like (25) or (Author 12) right after its quote.
 - Do NOT invent facts, statistics, sources or personal experiences. Where a concrete detail from the student would help, insert a short bracketed placeholder like [add your own example].
-- Keep the same length: rewrite and replace words, never delete sentences or details.
+- Keep the same length: the original is ${countWords(text)} words, so stay between ${Math.round(countWords(text) * 0.95)} and ${Math.round(countWords(text) * 1.05)} words. Rewrite and replace words, never delete sentences or details, and don't add new sentences of your own.
 Reply with ONLY the rewritten text: no title, no notes, no quotation marks around it.
 
 TEXT:

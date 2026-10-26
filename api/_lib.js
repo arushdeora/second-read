@@ -220,15 +220,16 @@ export async function rewriteKeepLength(prompt, original, { min = 0.92, max = 1.
     if (isMetaReply(best.text, original)) throw { status: 422, code: "not_rewritten" };
   }
   let w = countWords(best.text);
-  if (n >= 40 && (w < lo || w > hi) && !best.cut) {
+  // Up to two retries with the exact numbers; keep whichever attempt is closest to the original length.
+  for (let tries = 0; tries < 2 && n >= 40 && (w < lo || w > hi) && !best.cut; tries++) {
     const fix = w < lo
       ? `\n\nIMPORTANT: A previous attempt was only ${w} words, which removed too much. The result must be ${lo}-${hi} words. Go through the original sentence by sentence and rewrite EVERY one; keep all details.`
-      : `\n\nIMPORTANT: A previous attempt was ${w} words, which is too long. The result must be ${lo}-${hi} words. Do not add new content.`;
+      : `\n\nIMPORTANT: A previous attempt was ${w} words, which is too long. The result must be ${lo}-${hi} words. Rewrite the original sentence by sentence, keep each sentence about as long as the original one, and do not add new content.`;
     try {
       const again = await askClaudeText(prompt + rule + fix, tokens); again.text = clean(again.text);
       const w2 = countWords(again.text);
       if (again.text && !isMetaReply(again.text, original) && Math.abs(w2 - n) < Math.abs(w - n)) { best = again; w = w2; }
-    } catch (e) { /* keep the first attempt */ }
+    } catch (e) { break; /* keep the best attempt so far */ }
   }
   return { text: best.text, cut: best.cut, words: w, originalWords: n };
 }
